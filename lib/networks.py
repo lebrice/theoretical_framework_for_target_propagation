@@ -32,6 +32,7 @@ import torch.nn.functional as F
 # TODO: adjust the compute_output_target methods for computing voltage targets
 # instead of rate targets for the networks that use voltage targets
 
+
 class DTPNetwork(nn.Module):
     """ A multilayer perceptron (MLP) network that will be trained by the
     difference target propagation (DTP) method.
@@ -68,20 +69,34 @@ class DTPNetwork(nn.Module):
 
     """
 
-    def __init__(self, n_in, n_hidden, n_out, activation='relu',
-                 output_activation='linear', bias=True, sigma=0.36,
-                 forward_requires_grad=False,
-                 initialization='orthogonal',
-                 fb_activation='relu',
-                 plots=None):
+    def __init__(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation="relu",
+        output_activation="linear",
+        bias=True,
+        sigma=0.36,
+        forward_requires_grad=False,
+        initialization="orthogonal",
+        fb_activation="relu",
+        plots=None,
+    ):
         nn.Module.__init__(self)
 
         self._depth = len(n_hidden) + 1
-        self._layers = self.set_layers(n_in, n_hidden, n_out, activation,
-                                       output_activation, bias,
-                                       forward_requires_grad,
-                                       initialization,
-                                       fb_activation)
+        self._layers = self.set_layers(
+            n_in,
+            n_hidden,
+            n_out,
+            activation,
+            output_activation,
+            bias,
+            forward_requires_grad,
+            initialization,
+            fb_activation,
+        )
         self._input = None
         self._sigma = sigma
         self._forward_requires_grad = forward_requires_grad
@@ -103,11 +118,18 @@ class DTPNetwork(nn.Module):
 
             self.nullspace_relative_norm = pd.DataFrame(columns=[i for i in range(0, self._depth)])
 
-
-
-    def set_layers(self, n_in, n_hidden, n_out, activation, output_activation,
-                   bias, forward_requires_grad, initialization,
-                   fb_activation):
+    def set_layers(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation,
+        output_activation,
+        bias,
+        forward_requires_grad,
+        initialization,
+        fb_activation,
+    ):
         """
         Create the layers of the network and output them as a ModuleList.
         Args:
@@ -132,17 +154,27 @@ class DTPNetwork(nn.Module):
         layers = nn.ModuleList()
         for i in range(1, len(n_all) - 1):
             layers.append(
-                DTPLayer(n_all[i - 1], n_all[i], bias=bias,
-                         forward_activation=activation,
-                         feedback_activation=fb_activation,
-                         forward_requires_grad=forward_requires_grad,
-                         initialization=initialization
-                         ))
-        layers.append(DTPLayer(n_all[-2], n_all[-1], bias=bias,
-                               forward_activation=output_activation,
-                               feedback_activation=fb_activation,
-                               forward_requires_grad=forward_requires_grad,
-                               initialization=initialization))
+                DTPLayer(
+                    n_all[i - 1],
+                    n_all[i],
+                    bias=bias,
+                    forward_activation=activation,
+                    feedback_activation=fb_activation,
+                    forward_requires_grad=forward_requires_grad,
+                    initialization=initialization,
+                )
+            )
+        layers.append(
+            DTPLayer(
+                n_all[-2],
+                n_all[-1],
+                bias=bias,
+                forward_activation=output_activation,
+                feedback_activation=fb_activation,
+                forward_requires_grad=forward_requires_grad,
+                initialization=initialization,
+            )
+        )
         return layers
 
     @property
@@ -219,11 +251,10 @@ class DTPNetwork(nn.Module):
         """
         output_activations = self.layers[-1].activations
 
-        gradient = torch.autograd.grad(loss, output_activations,
-                                       retain_graph=self.forward_requires_grad)\
-                                        [0].detach()
-        output_targets = output_activations - \
-                         target_lr*gradient
+        gradient = torch.autograd.grad(
+            loss, output_activations, retain_graph=self.forward_requires_grad
+        )[0].detach()
+        output_targets = output_activations - target_lr * gradient
         return output_targets
 
     def propagate_backward(self, h_target, i):
@@ -236,14 +267,13 @@ class DTPNetwork(nn.Module):
         Returns: the target for layer i
 
         """
-        for k in range(self.depth-1, i, -1):
+        for k in range(self.depth - 1, i, -1):
             h_current = self.layers[k].activations
-            h_previous = self.layers[k-1].activations
+            h_previous = self.layers[k - 1].activations
             h_target = self.layers[k].backward(h_target, h_previous, h_current)
         return h_target
 
-    def backward_random(self, loss, target_lr, i, save_target=False,
-                        norm_ratio=1.):
+    def backward_random(self, loss, target_lr, i, save_target=False, norm_ratio=1.0):
         """ Propagate the output target backwards through the network until
         layer i. Based on this target, compute the gradient of the forward
         weights and bias of layer i and save them in the parameter tensors.
@@ -268,16 +298,15 @@ class DTPNetwork(nn.Module):
         if save_target:
             self.layers[i].target = h_target
 
-        if i == 0: # first hidden layer needs to have the input
-                   # for computing gradients
-            self.layers[i].compute_forward_gradients(h_target, self.input,
-                                                     norm_ratio=norm_ratio)
+        if i == 0:  # first hidden layer needs to have the input
+            # for computing gradients
+            self.layers[i].compute_forward_gradients(h_target, self.input, norm_ratio=norm_ratio)
         else:
-            self.layers[i].compute_forward_gradients(h_target,
-                                                 self.layers[i-1].activations,
-                                                     norm_ratio=norm_ratio)
+            self.layers[i].compute_forward_gradients(
+                h_target, self.layers[i - 1].activations, norm_ratio=norm_ratio
+            )
 
-    def backward_all(self, output_target, save_target=False, norm_ratio=1.):
+    def backward_all(self, output_target, save_target=False, norm_ratio=1.0):
         """ Propagate the output_target backwards through all the layers. Based
         on these local targets, compute the gradient of the forward weights and
         biases of all layers.
@@ -295,19 +324,17 @@ class DTPNetwork(nn.Module):
 
         if save_target:
             self.layers[-1].target = h_target
-        for i in range(self.depth-1, 0, -1):
+        for i in range(self.depth - 1, 0, -1):
             h_current = self.layers[i].activations
-            h_previous = self.layers[i-1].activations
-            self.layers[i].compute_forward_gradients(h_target, h_previous,
-                                                     norm_ratio=norm_ratio)
+            h_previous = self.layers[i - 1].activations
+            self.layers[i].compute_forward_gradients(h_target, h_previous, norm_ratio=norm_ratio)
             h_target = self.layers[i].backward(h_target, h_previous, h_current)
             if save_target:
-                self.layers[i-1].target = h_target
+                self.layers[i - 1].target = h_target
 
-        self.layers[0].compute_forward_gradients(h_target, self.input,
-                                                 norm_ratio=norm_ratio)
+        self.layers[0].compute_forward_gradients(h_target, self.input, norm_ratio=norm_ratio)
 
-    def backward(self, loss, target_lr, save_target=False, norm_ratio=1.):
+    def backward(self, loss, target_lr, save_target=False, norm_ratio=1.0):
         """ Compute and propagate the output_target backwards through all the
         layers. Based on these local targets, compute the gradient of the
         forward weights and biases of all layers.
@@ -332,8 +359,9 @@ class DTPNetwork(nn.Module):
         feedback parameter tensors."""
 
         for i in range(1, self.depth):
-            h_corrupted = self.layers[i-1].activations + \
-                    self.sigma * torch.randn_like(self.layers[i-1].activations)
+            h_corrupted = self.layers[i - 1].activations + self.sigma * torch.randn_like(
+                self.layers[i - 1].activations
+            )
             self.layers[i].compute_feedback_gradients(h_corrupted, self.sigma)
 
     def get_forward_parameter_list(self):
@@ -445,35 +473,31 @@ class DTPNetwork(nn.Module):
             at index 1 (if bias is not None).
 
         """
-        bp_gradients = self.layers[i].compute_bp_update(loss,
-                                                        retain_graph)
+        bp_gradients = self.layers[i].compute_bp_update(loss, retain_graph)
         gradients = self.layers[i].get_forward_gradients()
         if utils.contains_nan(bp_gradients[0].detach()):
-            print('bp update contains nan (layer {}):'.format(i))
+            print("bp update contains nan (layer {}):".format(i))
             print(bp_gradients[0].detach())
         if utils.contains_nan(gradients[0].detach()):
-            print('weight update contains nan (layer {}):'.format(i))
+            print("weight update contains nan (layer {}):".format(i))
             print(gradients[0].detach())
-        if torch.norm(gradients[0].detach(), p='fro') < 1e-14:
-            print('norm updates approximately zero (layer {}):'.format(i))
-            print(torch.norm(gradients[0].detach(), p='fro'))
+        if torch.norm(gradients[0].detach(), p="fro") < 1e-14:
+            print("norm updates approximately zero (layer {}):".format(i))
+            print(torch.norm(gradients[0].detach(), p="fro"))
             print(gradients[0].detach())
-        if torch.norm(gradients[0].detach(), p='fro') == 0:
-            print('norm updates exactly zero (layer {}):'.format(i))
-            print(torch.norm(gradients[0].detach(), p='fro'))
+        if torch.norm(gradients[0].detach(), p="fro") == 0:
+            print("norm updates exactly zero (layer {}):".format(i))
+            print(torch.norm(gradients[0].detach(), p="fro"))
             print(gradients[0].detach())
 
-        weights_angle = utils.compute_angle(bp_gradients[0].detach(),
-                                            gradients[0])
+        weights_angle = utils.compute_angle(bp_gradients[0].detach(), gradients[0])
         if self.layers[i].bias is not None:
-            bias_angle = utils.compute_angle(bp_gradients[1].detach(),
-                                             gradients[1])
+            bias_angle = utils.compute_angle(bp_gradients[1].detach(), gradients[1])
             return (weights_angle, bias_angle)
         else:
-            return (weights_angle, )
+            return (weights_angle,)
 
-    def compute_gn_angles(self, output_activation, loss, damping, i,
-                          retain_graph=False):
+    def compute_gn_angles(self, output_activation, loss, damping, i, retain_graph=False):
         """
         Compute the angles of the current forward parameter updates of layer i
         with the GN update for those parameters.
@@ -490,24 +514,20 @@ class DTPNetwork(nn.Module):
             at index 1 (if bias is not None).
 
         """
-        gn_gradients = self.layers[i].compute_gn_update(output_activation,
-                                                        loss,
-                                                        damping,
-                                                        retain_graph)
-        gradients =self.layers[i].get_forward_gradients()
-        weights_angle = utils.compute_angle(gn_gradients[0],
-                                            gradients[0])
+        gn_gradients = self.layers[i].compute_gn_update(
+            output_activation, loss, damping, retain_graph
+        )
+        gradients = self.layers[i].get_forward_gradients()
+        weights_angle = utils.compute_angle(gn_gradients[0], gradients[0])
         if self.layers[i].bias is not None:
-            bias_angle = utils.compute_angle(gn_gradients[1],
-                                             gradients[1])
+            bias_angle = utils.compute_angle(gn_gradients[1], gradients[1])
             return (weights_angle, bias_angle)
         else:
             return (weights_angle,)
 
-    def compute_gn_activation_angle(self, output_activation, loss,
-                                    damping, i, step,
-                                    retain_graph=False,
-                                    linear=False):
+    def compute_gn_activation_angle(
+        self, output_activation, loss, damping, i, step, retain_graph=False, linear=False,
+    ):
         """
         Compute the angle between the difference between the target and layer
         activation and the gauss-newton update for the layers activation
@@ -527,17 +547,11 @@ class DTPNetwork(nn.Module):
 
         """
         if linear:
-            target_difference = self.layers[i].linearactivations - \
-                                self.layers[i].target
+            target_difference = self.layers[i].linearactivations - self.layers[i].target
         else:
-            target_difference = self.layers[i].activations - \
-                                self.layers[i].target
+            target_difference = self.layers[i].activations - self.layers[i].target
         gn_updates = self.layers[i].compute_gn_activation_updates(
-            output_activation,
-            loss,
-            damping,
-            retain_graph=retain_graph,
-            linear=linear
+            output_activation, loss, damping, retain_graph=retain_graph, linear=linear
         )
         # print(f"Layer {i}:")
         # print(torch.mean(target_difference).item())
@@ -550,8 +564,7 @@ class DTPNetwork(nn.Module):
         gn_activationav = utils.compute_average_batch_angle(target_difference, gn_updates)
         return gn_activationav
 
-    def compute_bp_activation_angle(self, loss, i, retain_graph=False,
-                                    linear=False):
+    def compute_bp_activation_angle(self, loss, i, retain_graph=False, linear=False):
         """
         Compute the angle between the difference between the target and layer
         activation and the backpropagation update for the layers activation
@@ -569,28 +582,26 @@ class DTPNetwork(nn.Module):
         Returns : The average angle in degrees
         """
         if linear:
-            target_difference = self.layers[i].linearactivations - \
-                                self.layers[i].target
+            target_difference = self.layers[i].linearactivations - self.layers[i].target
         else:
-            target_difference = self.layers[i].activations - \
-                                self.layers[i].target
-        bp_updates = self.layers[i].compute_bp_activation_updates(
-            loss=loss,
-            retain_graph=retain_graph,
-            linear=linear
-        ).detach()
+            target_difference = self.layers[i].activations - self.layers[i].target
+        bp_updates = (
+            self.layers[i]
+            .compute_bp_activation_updates(loss=loss, retain_graph=retain_graph, linear=linear)
+            .detach()
+        )
 
-        angle = utils.compute_average_batch_angle(target_difference.detach(),
-                                                  bp_updates)
+        angle = utils.compute_average_batch_angle(target_difference.detach(), bp_updates)
 
         return angle
 
-    def compute_gnt_angle(self, output_activation, loss, damping,
-                          i, step, retain_graph=False, linear=False):
+    def compute_gnt_angle(
+        self, output_activation, loss, damping, i, step, retain_graph=False, linear=False,
+    ):
         if i == 0:
             h_previous = self.input
         else:
-            h_previous = self.layers[i-1].activations
+            h_previous = self.layers[i - 1].activations
 
         gnt_updates = self.layers[i].compute_gnt_updates(
             output_activation=output_activation,
@@ -598,7 +609,7 @@ class DTPNetwork(nn.Module):
             h_previous=h_previous,
             damping=damping,
             retain_graph=retain_graph,
-            linear=linear
+            linear=linear,
         )
 
         gradients = self.layers[i].get_forward_gradients()
@@ -607,8 +618,7 @@ class DTPNetwork(nn.Module):
             bias_angle = utils.compute_angle(gnt_updates[1], gradients[1])
             return (weights_angle, bias_angle)
         else:
-            return (weights_angle, )
-
+            return (weights_angle,)
 
     def save_logs(self, writer, step):
         """ Save logs and plots for tensorboardX.
@@ -619,9 +629,8 @@ class DTPNetwork(nn.Module):
             """
 
         for i in range(len(self.layers)):
-            name = 'layer {}'.format(i+1)
-            self.layers[i].save_logs(writer, step, name,
-                                     no_gradient=i==0)
+            name = "layer {}".format(i + 1)
+            self.layers[i].save_logs(writer, step, name, no_gradient=i == 0)
 
     def save_feedback_batch_logs(self, writer, step, init=False):
         """
@@ -633,9 +642,10 @@ class DTPNetwork(nn.Module):
                 initialization phase (only training the feedback weights).
         """
         for i in range(len(self.layers)):
-            name = 'layer {}'.format(i+1)
-            self.layers[i].save_feedback_batch_logs(writer, step, name,
-                                     no_gradient=i == 0, init=init)
+            name = "layer {}".format(i + 1)
+            self.layers[i].save_feedback_batch_logs(
+                writer, step, name, no_gradient=i == 0, init=init
+            )
 
     def save_bp_angles(self, writer, step, loss, retain_graph=False):
         """
@@ -660,7 +670,7 @@ class DTPNetwork(nn.Module):
             layer_indices = [self.update_idx]
 
         for i in layer_indices:
-            name = 'layer {}'.format(i+1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
                 # should be saved for the next index
                 retain_graph_flag = True
@@ -668,24 +678,18 @@ class DTPNetwork(nn.Module):
                 retain_graph_flag = retain_graph
             angles = self.compute_bp_angles(loss, i, retain_graph_flag)
             writer.add_scalar(
-                tag='{}/weight_bp_angle'.format(name),
-                scalar_value=angles[0],
-                global_step=step
+                tag="{}/weight_bp_angle".format(name), scalar_value=angles[0], global_step=step,
             )
 
             if self._plots is not None:
                 self.bp_angles.at[step, i] = angles[0].item()
 
-
             if self.layers[i].bias is not None:
                 writer.add_scalar(
-                    tag='{}/bias_bp_angle'.format(name),
-                    scalar_value=angles[1],
-                    global_step=step
+                    tag="{}/bias_bp_angle".format(name), scalar_value=angles[1], global_step=step,
                 )
 
-    def save_gn_angles(self, writer, step, output_activation, loss, damping,
-                       retain_graph=False):
+    def save_gn_angles(self, writer, step, output_activation, loss, damping, retain_graph=False):
         """
         Save the angles of the current forward parameter updates of layer i
         with the backprop update for those parameters. on tensorboardX.
@@ -708,18 +712,15 @@ class DTPNetwork(nn.Module):
             layer_indices = [self.update_idx]
 
         for i in layer_indices:
-            name = 'layer {}'.format(i+1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
-                                        # should be saved for the next index
+                # should be saved for the next index
                 retain_graph_flag = True
             else:
                 retain_graph_flag = retain_graph
-            angles = self.compute_gn_angles(output_activation, loss, damping,
-                                            i, retain_graph_flag)
+            angles = self.compute_gn_angles(output_activation, loss, damping, i, retain_graph_flag)
             writer.add_scalar(
-                tag='{}/weight_gn_angle'.format(name),
-                scalar_value=angles[0],
-                global_step=step
+                tag="{}/weight_gn_angle".format(name), scalar_value=angles[0], global_step=step,
             )
 
             if self._plots is not None:
@@ -727,19 +728,25 @@ class DTPNetwork(nn.Module):
 
             if self.layers[i].bias is not None:
                 writer.add_scalar(
-                    tag='{}/bias_gn_angle'.format(name),
-                    scalar_value=angles[1],
-                    global_step=step
+                    tag="{}/bias_gn_angle".format(name), scalar_value=angles[1], global_step=step,
                 )
 
-    def save_gnt_angles(self, writer, step, output_activation, loss,
-                        damping, retain_graph=False, custom_result_df=None):
+    def save_gnt_angles(
+        self,
+        writer,
+        step,
+        output_activation,
+        loss,
+        damping,
+        retain_graph=False,
+        custom_result_df=None,
+    ):
         # if self.update_idx is None, the randomized setting is not used and
         # all the layers have their parameters updated. The angle should thus
         # be computed for all layers
         # print('saving gnt angles')
         if self.update_idx is None:
-            layer_indices = range(len(self.layers)-1)
+            layer_indices = range(len(self.layers) - 1)
         else:
             layer_indices = [self.update_idx]
 
@@ -754,25 +761,27 @@ class DTPNetwork(nn.Module):
             assert len(damping) == len(layer_indices)
 
         for i in layer_indices:
-            name = 'layer {}'.format(i + 1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
                 # should be saved for the next index
                 retain_graph_flag = True
             else:
                 retain_graph_flag = retain_graph
-            angles = self.compute_gnt_angle(output_activation=output_activation,
-                                            loss=loss,
-                                            damping=damping[i],
-                                            i=i,
-                                            step=step,
-                                            retain_graph=retain_graph_flag)
+            angles = self.compute_gnt_angle(
+                output_activation=output_activation,
+                loss=loss,
+                damping=damping[i],
+                i=i,
+                step=step,
+                retain_graph=retain_graph_flag,
+            )
             if custom_result_df is not None:
-                custom_result_df.at[step,i] = angles[0].item()
+                custom_result_df.at[step, i] = angles[0].item()
             else:
                 writer.add_scalar(
-                    tag='{}/weight_gnt_angle'.format(name),
+                    tag="{}/weight_gnt_angle".format(name),
                     scalar_value=angles[0],
-                    global_step=step
+                    global_step=step,
                 )
 
                 if self._plots is not None:
@@ -782,43 +791,39 @@ class DTPNetwork(nn.Module):
 
                 if self.layers[i].bias is not None:
                     writer.add_scalar(
-                        tag='{}/bias_gnt_angle'.format(name),
+                        tag="{}/bias_gnt_angle".format(name),
                         scalar_value=angles[1],
-                        global_step=step
+                        global_step=step,
                     )
 
-    def save_nullspace_norm_ratio(self, writer, step, output_activation,
-                                  retain_graph=False):
+    def save_nullspace_norm_ratio(self, writer, step, output_activation, retain_graph=False):
         if self.update_idx is None:
             layer_indices = range(len(self.layers))
         else:
             layer_indices = [self.update_idx]
 
         for i in layer_indices:
-            name = 'layer {}'.format(i + 1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
-                                        # should be saved for the next index
+                # should be saved for the next index
                 retain_graph_flag = True
             else:
                 retain_graph_flag = retain_graph
 
             relative_norm = self.layers[i].compute_nullspace_relative_norm(
-                output_activation,
-                retain_graph=retain_graph_flag
+                output_activation, retain_graph=retain_graph_flag
             )
 
             writer.add_scalar(
-                tag='{}/nullspace_relative_norm'.format(name),
+                tag="{}/nullspace_relative_norm".format(name),
                 scalar_value=relative_norm,
-                global_step=step
+                global_step=step,
             )
 
             if self._plots is not None:
                 self.nullspace_relative_norm.at[step, i] = relative_norm.item()
 
-
-    def save_bp_activation_angle(self, writer, step, loss,
-                                 retain_graph=False):
+    def save_bp_activation_angle(self, writer, step, loss, retain_graph=False):
         """
         Save the angle between the difference between the target and layer
         activation and the backpropagation update for the layers activation
@@ -840,27 +845,24 @@ class DTPNetwork(nn.Module):
             layer_indices = [self.update_idx]
 
         for i in layer_indices:
-            name = 'layer {}'.format(i + 1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
                 # should be saved for the next index
                 retain_graph_flag = True
             else:
                 retain_graph_flag = retain_graph
-            angle = self.compute_bp_activation_angle(loss, i,
-                                                      retain_graph_flag)
-
+            angle = self.compute_bp_activation_angle(loss, i, retain_graph_flag)
 
             writer.add_scalar(
-                tag='{}/activation_bp_angle'.format(name),
-                scalar_value=angle,
-                global_step=step
+                tag="{}/activation_bp_angle".format(name), scalar_value=angle, global_step=step,
             )
             if self._plots is not None:
                 self.bp_activation_angles.at[step, i] = angle.item()
         return
 
-    def save_gn_activation_angle(self, writer, step, output_activation, loss,
-                                 damping, retain_graph=False):
+    def save_gn_activation_angle(
+        self, writer, step, output_activation, loss, damping, retain_graph=False
+    ):
         """
         Save the angle between the difference between the target and layer
         activation and the gauss-newton update for the layers activation
@@ -882,25 +884,22 @@ class DTPNetwork(nn.Module):
             layer_indices = [self.update_idx]
 
         for i in layer_indices:
-            name = 'layer {}'.format(i + 1)
+            name = "layer {}".format(i + 1)
             if i != layer_indices[-1]:  # if it is not the last index, the graph
                 # should be saved for the next index
                 retain_graph_flag = True
             else:
                 retain_graph_flag = retain_graph
-            angle = self.compute_gn_activation_angle(output_activation, loss,
-                                                     damping, i, step,
-                                                     retain_graph_flag)
+            angle = self.compute_gn_activation_angle(
+                output_activation, loss, damping, i, step, retain_graph_flag
+            )
             writer.add_scalar(
-                tag='{}/activation_gn_angle'.format(name),
-                scalar_value=angle,
-                global_step=step
+                tag="{}/activation_gn_angle".format(name), scalar_value=angle, global_step=step,
             )
 
             if self._plots is not None:
                 self.gn_activation_angles.at[step, i] = angle.item()
         return
-
 
     def get_av_reconstruction_loss(self):
         """ Get the average reconstruction loss of the network across its layers
@@ -913,8 +912,7 @@ class DTPNetwork(nn.Module):
         reconstruction_losses = np.array([])
 
         for layer in self.layers[1:]:
-            reconstruction_losses = np.append(reconstruction_losses,
-                                              layer.reconstruction_loss)
+            reconstruction_losses = np.append(reconstruction_losses, layer.reconstruction_loss)
 
         return np.mean(reconstruction_losses)
 
@@ -924,10 +922,18 @@ class LeeDTPNetwork(nn.Module):
     this network, the target for the last hidden layer is computed by error
     backpropagation instead of DTP. """
 
-    def __init__(self, n_in, n_hidden, n_out, activation='tanh',
-                 output_activation='linear', bias=True, sigma=0.36,
-                 initialization='orthogonal',
-                 forward_requires_grad=False):
+    def __init__(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation="tanh",
+        output_activation="linear",
+        bias=True,
+        sigma=0.36,
+        initialization="orthogonal",
+        forward_requires_grad=False,
+    ):
         """ See arguments of __init__ of class DTP Network
 
         Attributes:
@@ -944,30 +950,34 @@ class LeeDTPNetwork(nn.Module):
         """
         nn.Module.__init__(self)
 
-        self._dtpnetwork = DTPNetwork(n_in, n_hidden[:-1], n_hidden[-1],
-                                      activation=activation,
-                                      output_activation=activation,
-                                      bias=bias, sigma=sigma,
-                                      initialization=initialization,
-                                      forward_requires_grad=
-                                      forward_requires_grad)
+        self._dtpnetwork = DTPNetwork(
+            n_in,
+            n_hidden[:-1],
+            n_hidden[-1],
+            activation=activation,
+            output_activation=activation,
+            bias=bias,
+            sigma=sigma,
+            initialization=initialization,
+            forward_requires_grad=forward_requires_grad,
+        )
 
         self._linearlayer = nn.Linear(n_hidden[-1], n_out, bias=bias)
-        if initialization == 'orthogonal':
-            gain = np.sqrt(6./(n_hidden[-1] + n_out))
+        if initialization == "orthogonal":
+            gain = np.sqrt(6.0 / (n_hidden[-1] + n_out))
             nn.init.orthogonal_(self._linearlayer.weight, gain=gain)
-        elif initialization == 'xavier':
+        elif initialization == "xavier":
             nn.init.xavier_uniform_(self._linearlayer.weight)
         else:
-            raise ValueError('Given initialization "{}" is not supported.'\
-                             .format(initialization))
+            raise ValueError('Given initialization "{}" is not supported.'.format(initialization))
         if bias:
             nn.init.constant_(self._linearlayer.bias, 0)
         self._depth = len(n_hidden) + 1
 
-        if output_activation != 'linear':
-            raise ValueError('{} is not supported as an output '
-                             'activation'.format(output_activation))
+        if output_activation != "linear":
+            raise ValueError(
+                "{} is not supported as an output " "activation".format(output_activation)
+            )
 
         self._update_idx = None
         self._forward_requires_grad = forward_requires_grad
@@ -1012,11 +1022,11 @@ class LeeDTPNetwork(nn.Module):
     def forward(self, x):
         x = self.dtpnetwork.forward(x)
         if x.requires_grad == False:  # if statement is needed to be sure that
-                                      # x is a leaf node. Otherwise, we are not
-                                      # allowed to change the grad attribute.
+            # x is a leaf node. Otherwise, we are not
+            # allowed to change the grad attribute.
             x.requires_grad = True
         x = self.linearlayer(x)
-        #TODO: implement option for other activation functions besides linear
+        # TODO: implement option for other activation functions besides linear
         return x
 
     def backward(self, loss, target_lr, save_target=False):
@@ -1032,19 +1042,17 @@ class LeeDTPNetwork(nn.Module):
         # need the gradients with respect to the last hidden layer and the
         # weight and bias of the output linear layer.
 
-        gradients = torch.autograd.grad(loss, self.linearlayer.parameters(),
-                                        retain_graph=True)
+        gradients = torch.autograd.grad(loss, self.linearlayer.parameters(), retain_graph=True)
         for i, param in enumerate(self.linearlayer.parameters()):
             param.grad = gradients[i].detach()
 
         hidden_activations = self.dtpnetwork.layers[-1].activations
-        hiddengradient = torch.autograd.grad(loss, hidden_activations,
-                                             retain_graph=
-                                             self.forward_requires_grad)
+        hiddengradient = torch.autograd.grad(
+            loss, hidden_activations, retain_graph=self.forward_requires_grad
+        )
         hiddengradient = hiddengradient[0].detach()
 
-
-        hidden_targets = hidden_activations - target_lr*hiddengradient
+        hidden_targets = hidden_activations - target_lr * hiddengradient
         self.dtpnetwork.backward_all(hidden_targets, save_target)
 
     def compute_feedback_gradients(self):
@@ -1104,7 +1112,7 @@ class LeeDTPNetwork(nn.Module):
         output_weights = self.linearlayer.weight
         output_bias = self.linearlayer.bias
 
-        name = 'layer {}'.format(self.dtpnetwork.depth + 1)
+        name = "layer {}".format(self.dtpnetwork.depth + 1)
 
         forward_weights_norm = torch.norm(output_weights)
         forward_bias_norm = torch.norm(output_bias)
@@ -1112,18 +1120,26 @@ class LeeDTPNetwork(nn.Module):
         forward_weights_gradients_norm = torch.norm(output_weights.grad)
         forward_bias_gradients_norm = torch.norm(output_bias.grad)
 
-        writer.add_scalar(tag='{}/forward_weights_norm'.format(name),
-                          scalar_value=forward_weights_norm,
-                          global_step=step)
-        writer.add_scalar(tag='{}/forward_bias_norm'.format(name),
-                          scalar_value=forward_bias_norm,
-                          global_step=step)
-        writer.add_scalar(tag='{}/forward_weights_gradients_norm'.format(name),
-                          scalar_value=forward_weights_gradients_norm,
-                          global_step=step)
-        writer.add_scalar(tag='{}/forward_bias_gradients_norm'.format(name),
-                          scalar_value=forward_bias_gradients_norm,
-                          global_step=step)
+        writer.add_scalar(
+            tag="{}/forward_weights_norm".format(name),
+            scalar_value=forward_weights_norm,
+            global_step=step,
+        )
+        writer.add_scalar(
+            tag="{}/forward_bias_norm".format(name),
+            scalar_value=forward_bias_norm,
+            global_step=step,
+        )
+        writer.add_scalar(
+            tag="{}/forward_weights_gradients_norm".format(name),
+            scalar_value=forward_weights_gradients_norm,
+            global_step=step,
+        )
+        writer.add_scalar(
+            tag="{}/forward_bias_gradients_norm".format(name),
+            scalar_value=forward_bias_gradients_norm,
+            global_step=step,
+        )
 
     def save_feedback_batch_logs(self, writer, step):
         """
@@ -1141,28 +1157,25 @@ class LeeDTPNetwork(nn.Module):
         """
         self.dtpnetwork.save_bp_angles(writer, step, loss, retain_graph)
 
-    def save_gn_angles(self, writer, step, output_activation, loss, damping,
-                       retain_graph=False):
+    def save_gn_angles(self, writer, step, output_activation, loss, damping, retain_graph=False):
         """
         See DTPNetwork.save_gn_angles
 
         """
-        self.dtpnetwork.save_gn_angles(writer, step, output_activation, loss,
-                                       damping, retain_graph)
+        self.dtpnetwork.save_gn_angles(writer, step, output_activation, loss, damping, retain_graph)
 
-    def save_bp_activation_angle(self, writer, step, loss,
-                                 retain_graph=False):
+    def save_bp_activation_angle(self, writer, step, loss, retain_graph=False):
         """ See DTPNetwork.save_bp_activation_angle. """
-        self.dtpnetwork.save_bp_activation_angle(writer, step, loss,
-                                 retain_graph)
+        self.dtpnetwork.save_bp_activation_angle(writer, step, loss, retain_graph)
 
-    def save_gn_activation_angle(self, writer, step, output_activation, loss,
-                                 damping, retain_graph=False):
+    def save_gn_activation_angle(
+        self, writer, step, output_activation, loss, damping, retain_graph=False
+    ):
         """ See DTPNetwork.save_gn_activation_angle. """
 
-        self.dtpnetwork.save_gn_activation_angle(writer, step,
-                                                 output_activation, loss,
-                                                 damping, retain_graph)
+        self.dtpnetwork.save_gn_activation_angle(
+            writer, step, output_activation, loss, damping, retain_graph
+        )
 
     def get_av_reconstruction_loss(self):
         """ Get the average reconstruction loss of the network across its layers
@@ -1185,9 +1198,18 @@ class DTPDRLNetwork(DTPNetwork):
         output targets towards the hidden layers.
     """
 
-    def set_layers(self, n_in, n_hidden, n_out, activation, output_activation,
-                   bias, forward_requires_grad, initialization,
-                   fb_activation):
+    def set_layers(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation,
+        output_activation,
+        bias,
+        forward_requires_grad,
+        initialization,
+        fb_activation,
+    ):
         """
         Create the layers of the network and output them as a ModuleList.
         Args:
@@ -1212,17 +1234,27 @@ class DTPDRLNetwork(DTPNetwork):
         layers = nn.ModuleList()
         for i in range(1, len(n_all) - 1):
             layers.append(
-                DTPDRLLayer(n_all[i - 1], n_all[i], bias=bias,
-                            forward_activation=activation,
-                            feedback_activation=fb_activation,
-                            forward_requires_grad=forward_requires_grad,
-                            initialization=initialization
-                            ))
-        layers.append(DTPDRLLayer(n_all[-2], n_all[-1], bias=bias,
-                                  forward_activation=output_activation,
-                                  feedback_activation=fb_activation,
-                                  forward_requires_grad=forward_requires_grad,
-                                  initialization=initialization))
+                DTPDRLLayer(
+                    n_all[i - 1],
+                    n_all[i],
+                    bias=bias,
+                    forward_activation=activation,
+                    feedback_activation=fb_activation,
+                    forward_requires_grad=forward_requires_grad,
+                    initialization=initialization,
+                )
+            )
+        layers.append(
+            DTPDRLLayer(
+                n_all[-2],
+                n_all[-1],
+                bias=bias,
+                forward_activation=output_activation,
+                feedback_activation=fb_activation,
+                forward_requires_grad=forward_requires_grad,
+                initialization=initialization,
+            )
+        )
         return layers
 
     def compute_feedback_gradients(self, i):
@@ -1237,14 +1269,14 @@ class DTPDRLNetwork(DTPNetwork):
         # computed.
         self.reconstruction_loss_index = i
 
-        h_corrupted = self.layers[i-1].activations + \
-            self.sigma * torch.randn_like(self.layers[i - 1].activations)
-        output_corrupted = self.dummy_forward(h_corrupted, i-1)
+        h_corrupted = self.layers[i - 1].activations + self.sigma * torch.randn_like(
+            self.layers[i - 1].activations
+        )
+        output_corrupted = self.dummy_forward(h_corrupted, i - 1)
         h_current_reconstructed = self.propagate_backward(output_corrupted, i)
-        self.layers[i].compute_feedback_gradients(h_corrupted,
-                                                  h_current_reconstructed,
-                                                  self.layers[i-1].activations,
-                                                  self.sigma)
+        self.layers[i].compute_feedback_gradients(
+            h_corrupted, h_current_reconstructed, self.layers[i - 1].activations, self.sigma,
+        )
 
     def dummy_forward(self, h, i):
         """
@@ -1260,7 +1292,7 @@ class DTPDRLNetwork(DTPNetwork):
         """
         y = h
 
-        for layer in self.layers[i+1:]:
+        for layer in self.layers[i + 1 :]:
             y = layer.dummy_forward(y)
 
         return y
@@ -1271,16 +1303,21 @@ class DTPDRLNetwork(DTPNetwork):
         Returns (torch.Tensor):
             Tensor containing a scalar of the average reconstruction loss
         """
-        reconstruction_loss = self.layers[self.reconstruction_loss_index].\
-            reconstruction_loss
+        reconstruction_loss = self.layers[self.reconstruction_loss_index].reconstruction_loss
         return reconstruction_loss
 
 
 class BPNetwork(nn.Module):
-
-    def __init__(self, n_in, n_hidden, n_out, activation='relu',
-                 output_activation='linear', bias=True,
-                 initialization='orthogonal'):
+    def __init__(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation="relu",
+        output_activation="linear",
+        bias=True,
+        initialization="orthogonal",
+    ):
         super().__init__()
         if n_hidden is None:
             n_all = [n_in, n_out]
@@ -1288,19 +1325,21 @@ class BPNetwork(nn.Module):
             n_all = [n_in] + n_hidden + [n_out]
         self.layers = nn.ModuleList()
         for i in range(1, len(n_all)):
-            layer = nn.Linear(n_all[i-1], n_all[i], bias=bias)
-            if initialization == 'orthogonal':
-                gain = np.sqrt(6. / (n_all[i-1] + n_all[i]))
+            layer = nn.Linear(n_all[i - 1], n_all[i], bias=bias)
+            if initialization == "orthogonal":
+                gain = np.sqrt(6.0 / (n_all[i - 1] + n_all[i]))
                 nn.init.orthogonal_(layer.weight, gain=gain)
-            elif initialization == 'xavier':
+            elif initialization == "xavier":
                 nn.init.xavier_uniform_(layer.weight)
-            elif initialization == 'xavier_normal':
+            elif initialization == "xavier_normal":
                 nn.init.xavier_normal_(layer.weight)
-            elif initialization == 'teacher':
-                nn.init.xavier_normal_(layer.weight, gain=3.)
+            elif initialization == "teacher":
+                nn.init.xavier_normal_(layer.weight, gain=3.0)
             else:
-                raise ValueError('Provided weight initialization "{}" is not '
-                                 'supported.'.format(initialization))
+                raise ValueError(
+                    'Provided weight initialization "{}" is not '
+                    "supported.".format(initialization)
+                )
             if bias:
                 nn.init.constant_(layer.bias, 0)
 
@@ -1310,19 +1349,20 @@ class BPNetwork(nn.Module):
 
     @staticmethod
     def nonlinearity(x, nonlinearity):
-        if nonlinearity == 'tanh':
+        if nonlinearity == "tanh":
             return torch.tanh(x)
-        elif nonlinearity == 'relu':
+        elif nonlinearity == "relu":
             return F.relu(x)
-        elif nonlinearity == 'linear':
+        elif nonlinearity == "linear":
             return x
-        elif nonlinearity == 'leakyrelu':
+        elif nonlinearity == "leakyrelu":
             return F.leaky_relu(x, 0.2)
-        elif nonlinearity == 'sigmoid':
+        elif nonlinearity == "sigmoid":
             return torch.sigmoid(x)
         else:
-            raise ValueError('The provided forward activation {} is not '
-                             'supported'.format(nonlinearity))
+            raise ValueError(
+                "The provided forward activation {} is not " "supported".format(nonlinearity)
+            )
 
     def forward(self, x):
         for layer in self.layers[:-1]:
@@ -1344,7 +1384,7 @@ class BPNetwork(nn.Module):
             value (bool): True or False
         """
         if not isinstance(value, bool):
-            raise TypeError('The given value should be a boolean.')
+            raise TypeError("The given value should be a boolean.")
 
         for param in self.parameters():
             param.requires_grad = value
@@ -1354,24 +1394,35 @@ class GNTNetwork(DTPDRLNetwork):
     """ Network that computes exact GN targets for the nonlinear hidden layer
     activations and computes parameter updates using a gradient step on the
     local loss."""
-    def __init__(self, n_in, n_hidden, n_out, activation='relu',
-                 output_activation='linear', bias=True, sigma=0.36,
-                 forward_requires_grad=False,
-                 initialization='orthogonal',
-                 fb_activation='relu',
-                 plots=None,
-                 damping=0.):
-        super().__init__(n_in=n_in,
-                         n_hidden=n_hidden,
-                         n_out=n_out,
-                         activation=activation,
-                         output_activation=output_activation,
-                         bias=bias,
-                         sigma=sigma,
-                         forward_requires_grad=forward_requires_grad,
-                         initialization=initialization,
-                         fb_activation=fb_activation,
-                         plots=plots)
+
+    def __init__(
+        self,
+        n_in,
+        n_hidden,
+        n_out,
+        activation="relu",
+        output_activation="linear",
+        bias=True,
+        sigma=0.36,
+        forward_requires_grad=False,
+        initialization="orthogonal",
+        fb_activation="relu",
+        plots=None,
+        damping=0.0,
+    ):
+        super().__init__(
+            n_in=n_in,
+            n_hidden=n_hidden,
+            n_out=n_out,
+            activation=activation,
+            output_activation=output_activation,
+            bias=bias,
+            sigma=sigma,
+            forward_requires_grad=forward_requires_grad,
+            initialization=initialization,
+            fb_activation=fb_activation,
+            plots=plots,
+        )
         self._damping = damping
 
     @property
@@ -1379,17 +1430,22 @@ class GNTNetwork(DTPDRLNetwork):
         """ Getter for read only attr damping"""
         return self._damping
 
-    def backward_random(self, loss, target_lr, i,
-                        norm_ratio=1., save_target=False):
+    def backward_random(self, loss, target_lr, i, norm_ratio=1.0, save_target=False):
 
         self.update_idx = i
         output_activation = self.layers[-1].activations
 
-        layer_update = self.layers[i].compute_gn_activation_updates(
-                                      output_activation, loss,
-                                      damping=self.damping,
-                                      retain_graph=self.forward_requires_grad,
-                                      linear=False).detach()
+        layer_update = (
+            self.layers[i]
+            .compute_gn_activation_updates(
+                output_activation,
+                loss,
+                damping=self.damping,
+                retain_graph=self.forward_requires_grad,
+                linear=False,
+            )
+            .detach()
+        )
 
         h_target = self.layers[i].activations - layer_update
 
@@ -1397,43 +1453,45 @@ class GNTNetwork(DTPDRLNetwork):
             self.layers[i].target = h_target
 
         if i == 0:
-            self.layers[i].compute_forward_gradients(h_target, self.input,
-                                                     norm_ratio=norm_ratio)
+            self.layers[i].compute_forward_gradients(h_target, self.input, norm_ratio=norm_ratio)
         else:
-            self.layers[i].compute_forward_gradients(h_target,
-                                            self.layers[i-1].activations,
-                                                     norm_ratio=norm_ratio)
+            self.layers[i].compute_forward_gradients(
+                h_target, self.layers[i - 1].activations, norm_ratio=norm_ratio
+            )
 
-    def backward(self, loss, target_lr, save_target=False, norm_ratio=1.):
+    def backward(self, loss, target_lr, save_target=False, norm_ratio=1.0):
         output_activation = self.layers[-1].activations
 
         for i in range(self.depth):
-            if i == self.depth -1:
+            if i == self.depth - 1:
                 retain_graph = self.forward_requires_grad
             else:
                 retain_graph = True
 
-            layer_update = self.layers[i].compute_gn_activation_updates(
-                                      output_activation, loss,
-                                      damping=self.damping,
-                                      retain_graph=retain_graph,
-                                      linear=False).detach()
+            layer_update = (
+                self.layers[i]
+                .compute_gn_activation_updates(
+                    output_activation,
+                    loss,
+                    damping=self.damping,
+                    retain_graph=retain_graph,
+                    linear=False,
+                )
+                .detach()
+            )
 
             h_target = self.layers[i].activations - layer_update
             if save_target:
                 self.layers[i].target = h_target
 
             if i == 0:
-                self.layers[i].compute_forward_gradients(h_target, self.input,
-                                                         norm_ratio=norm_ratio)
+                self.layers[i].compute_forward_gradients(
+                    h_target, self.input, norm_ratio=norm_ratio
+                )
             else:
-                self.layers[i].compute_forward_gradients(h_target,
-                                                         self.layers[
-                                                             i - 1].activations,
-                                                         norm_ratio=norm_ratio)
+                self.layers[i].compute_forward_gradients(
+                    h_target, self.layers[i - 1].activations, norm_ratio=norm_ratio
+                )
 
     def compute_feedback_gradients(self):
         pass
-
-
-

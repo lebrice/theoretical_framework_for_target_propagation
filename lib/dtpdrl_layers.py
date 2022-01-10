@@ -26,9 +26,9 @@ class DTPDRLLayer(DTPLayer):
     """ Class for difference target propagation combined with the
     difference reconstruction loss, but without the minimal norm update."""
 
-    def compute_feedback_gradients(self, h_previous_corrupted,
-                                   h_current_reconstructed,
-                                   h_previous, sigma):
+    def compute_feedback_gradients(
+        self, h_previous_corrupted, h_current_reconstructed, h_previous, sigma
+    ):
         """
         Compute the gradient of the feedback weights and bias, based on the
         difference reconstruction loss (p16 in theoretical framework). The
@@ -45,29 +45,18 @@ class DTPDRLLayer(DTPLayer):
         """
         self.set_feedback_requires_grad(True)
 
-        h_previous_reconstructed = self.backward(h_current_reconstructed,
-                                             h_previous,
-                                             self.activations)
+        h_previous_reconstructed = self.backward(
+            h_current_reconstructed, h_previous, self.activations
+        )
         if sigma <= 0:
-            raise ValueError('Sigma should be greater than zero when using the'
-                             'difference reconstruction loss. Given sigma = '
-                             '{}'.format(sigma))
+            raise ValueError(
+                "Sigma should be greater than zero when using the"
+                "difference reconstruction loss. Given sigma = "
+                "{}".format(sigma)
+            )
 
-        scale = 1/sigma**2
-        reconstruction_loss = scale * F.mse_loss(h_previous_corrupted,
-                                         h_previous_reconstructed)
+        scale = 1 / sigma ** 2
+        reconstruction_loss = scale * F.mse_loss(h_previous_corrupted, h_previous_reconstructed)
         self.save_feedback_gradients(reconstruction_loss)
 
         self.set_feedback_requires_grad(False)
-
-
-
-
-
-
-
-
-
-
-
-

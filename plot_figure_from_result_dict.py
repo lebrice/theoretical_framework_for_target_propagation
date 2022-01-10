@@ -23,30 +23,39 @@ import pickle
 import matplotlib
 
 
-
 def run():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--out_dir', type=str,
-                        default=None,
-                        help='directory where the figures will be saved. '
-                             'Default is equal to --result_dir')
-    parser.add_argument('--result_dir', type=str,
-                        default='logs/figures/default',
-                        help='directory where the result dictionary is '
-                             'situated.')
-    parser.add_argument('--config_module', type=str,
-                        default='figure_scripts.config_toy_examples',
-                        help='The name of the module containing the configs.')
-    parser.add_argument('--show_plots', action='store_true',
-                        help='Should the plots be shown or only stored?')
-    parser.add_argument('--smooth', type=int, default=30,
-                        help='Smoothing window applied to the angle data.')
-    parser.add_argument('--show_title', action='store_true',
-                        help='display title on top of the figures')
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        default=None,
+        help="directory where the figures will be saved. " "Default is equal to --result_dir",
+    )
+    parser.add_argument(
+        "--result_dir",
+        type=str,
+        default="logs/figures/default",
+        help="directory where the result dictionary is " "situated.",
+    )
+    parser.add_argument(
+        "--config_module",
+        type=str,
+        default="figure_scripts.config_toy_examples",
+        help="The name of the module containing the configs.",
+    )
+    parser.add_argument(
+        "--show_plots", action="store_true", help="Should the plots be shown or only stored?",
+    )
+    parser.add_argument(
+        "--smooth", type=int, default=30, help="Smoothing window applied to the angle data.",
+    )
+    parser.add_argument(
+        "--show_title", action="store_true", help="display title on top of the figures"
+    )
 
     args = parser.parse_args()
     if not os.path.exists(args.result_dir):
-        raise ValueError('provided result_dir does not exist')
+        raise ValueError("provided result_dir does not exist")
     if args.out_dir is None:
         args.out_dir = args.result_dir
     if not os.path.exists(args.out_dir):
@@ -58,33 +67,35 @@ def run():
     config_fixed = config_module.config_fixed
     result_keys = config_module.result_keys
 
-
-    result_dir = os.path.join(args.result_dir, 'result_dict')
+    result_dir = os.path.join(args.result_dir, "result_dict")
     result_dict = figure_utils.read_result_dict(result_dir)
 
     # make the plots
     for result_key in result_keys:
-        if 'angle' in result_key:
-            xlabel = 'iteration'
+        if "angle" in result_key:
+            xlabel = "iteration"
             ylabel = figure_utils.make_ylabel(result_key)
         else:
-            xlabel = 'epoch'
+            xlabel = "epoch"
             ylabel = result_key
 
         result_key_dict = result_dict[result_key]
 
-        figure_utils.make_plot(result_key_dict=result_key_dict,
-                               result_key=result_key,
-                               title=result_key,
-                               xlabel=xlabel,
-                               ylabel=ylabel,
-                               out_dir=args.out_dir,
-                               save=True,
-                               show=args.show_plots,
-                               fancyplot=True,
-                               smooth=args.smooth,
-                               log_interval=config_fixed['log_interval'],
-                               no_title=not args.show_title)
+        figure_utils.make_plot(
+            result_key_dict=result_key_dict,
+            result_key=result_key,
+            title=result_key,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            out_dir=args.out_dir,
+            save=True,
+            show=args.show_plots,
+            fancyplot=True,
+            smooth=args.smooth,
+            log_interval=config_fixed["log_interval"],
+            no_title=not args.show_title,
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run()
