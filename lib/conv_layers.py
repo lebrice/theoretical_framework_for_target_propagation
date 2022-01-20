@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from lib import utils
+from . import utils
 import warnings
 class DDTPConvLayer(nn.Module):
     """

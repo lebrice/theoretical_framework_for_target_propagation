@@ -239,7 +239,8 @@ class OptimizerList(object):
         if isinstance(args.lr, float):
             forward_optimizer = choose_forward_optimizer(args, net)
             optimizer_list = [forward_optimizer]
-        elif isinstance(args.lr, np.ndarray):
+        elif isinstance(args.lr, (list, np.ndarray)):
+            args.lr = np.asarray(args.lr)
             # if args.network_type in ('BP', 'BPConv'):
             #     raise NetworkError('Multiple learning rates is not yet '
             #                        'implemented for BP')

@@ -21,16 +21,17 @@ import torch
 import torch.nn as nn
 import numpy as np
 import warnings
-from lib.dtp_layers import DTPLayer
-from lib.dtpdrl_layers import DTPDRLLayer
+from .dtp_layers import DTPLayer
+from .dtpdrl_layers import DTPDRLLayer
 from tensorboardX import SummaryWriter
-import lib.utils as utils
-from lib.utils import NetworkError
+from . import utils
+from .utils import NetworkError
 import pandas as pd
 import torch.nn.functional as F
 
 # TODO: adjust the compute_output_target methods for computing voltage targets
 # instead of rate targets for the networks that use voltage targets
+
 
 class DTPNetwork(nn.Module):
     """ A multilayer perceptron (MLP) network that will be trained by the

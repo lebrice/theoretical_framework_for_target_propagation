@@ -22,8 +22,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from tensorboardX import SummaryWriter
-import lib.utils as utils
+from . import utils
 import warnings
+
 
 class DTPLayer(nn.Module):
     """ An abstract base class for a layer of an MLP that will be trained by the

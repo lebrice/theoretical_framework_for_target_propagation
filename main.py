@@ -28,15 +28,18 @@ For more usage information, please check out
 
 import argparse
 import json
+from typing import Dict
 import numpy as np
 import random
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from lib.train import train, train_bp
-from lib import utils
-from lib import builders
+# TODO: Will make it impossible to run this as `python main.py ...`
+from .lib.train import train, train_bp
+from .lib import utils
+from .lib import builders
+
 from tensorboardX import SummaryWriter
 import os.path
 import pickle
@@ -46,7 +49,7 @@ import os
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-def run():
+def run(overwrite_defaults: Dict = None):
     """
     - Parsing command-line arguments
     - Creating synthetic regression data
@@ -54,9 +57,20 @@ def run():
     - Testing final network
 
     """
+    parser = add_command_line_args()
+    if overwrite_defaults is not None:
+        parser.set_defaults(**overwrite_defaults)
 
+    args = parser.parse_args()
+
+    args = postprocess_args(args)
+
+    return launch(args)
+
+
+def add_command_line_args(parser: argparse.ArgumentParser = None):
     ### Parse CLI arguments.
-    parser = argparse.ArgumentParser(description='Run experiments from paper '
+    parser = parser or argparse.ArgumentParser(description='Run experiments from paper '
                                                  '"A theoretical framework for'
                                                  'target propagation".')
 
@@ -426,9 +440,10 @@ def run():
                              'nullspace components of the parameter updates and'
                              'the updates themselves should be computed and '
                              'saved.')
+    return parser
 
 
-    args = parser.parse_args()
+def postprocess_args(args: argparse.Namespace) -> argparse.Namespace:
     args.save_angle = args.save_GN_activations_angle or \
                        args.save_BP_activations_angle or \
                        args.save_BP_angle or \
@@ -536,7 +551,7 @@ def run():
     else:
         args.direct_fb = False
 
-    if ',' in args.gn_damping:
+    if isinstance(args.gn_damping, str) and ',' in args.gn_damping:
         args.gn_damping = utils.str_to_list(args.gn_damping, type='float')
     else:
         args.gn_damping = float(args.gn_damping)
@@ -548,7 +563,10 @@ def run():
             raise ValueError('The shallow_training method is only implemented'
                              'in combination with BP. Make sure to set '
                              'the network_type argument on BP.')
+    return args
 
+
+def launch(args: argparse.Namespace):
 
     ### Ensure deterministic computation.
     print(f"RANDOM SEED: {args.random_seed}")
@@ -679,15 +697,15 @@ def run():
                                                        num_workers=0)
             val_loader = None
         else:
-            # g_cuda = torch.Generator(device='cuda')
-            trainset, valset = torch.utils.data.random_split(trainset_total,
-                                                             [45000, 5000])
+            g_cuda = torch.Generator(device='cuda')
+            from torch.utils.data import random_split, DataLoader
+            trainset, valset = random_split(trainset_total, [45000, 5000], generator=g_cuda)
             train_loader = torch.utils.data.DataLoader(trainset,
                                                        batch_size=args.batch_size,
-                                                       shuffle=True, num_workers=0)
+                                                       shuffle=True, num_workers=0, generator=g_cuda)
             val_loader = torch.utils.data.DataLoader(valset,
                                                      batch_size=args.batch_size,
-                                                     shuffle=False, num_workers=0)
+                                                     shuffle=False, num_workers=0, generator=g_cuda)
         testset = torchvision.datasets.CIFAR10(root=data_dir, train=False,
                                                download=True,
                                                transform=transform)
