@@ -272,7 +272,7 @@ class OptimizerList(object):
                              len(args.lr) != len(forward_params)):
                         raise NetworkError('The lenght of the list with learning rates '
                                            'does not correspond with the size of the '
-                                           'network.')
+                                           f'network. ({len(args.lr)=}, {len(forward_params)=}, {args.lr=})')
             if not (args.optimizer == 'SGD' or args.optimizer == 'Adam'):
                 raise NetworkError('multiple learning rates are only supported '
                                    'for SGD optimizer')
