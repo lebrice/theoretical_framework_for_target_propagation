@@ -222,6 +222,8 @@ class DTPLayer(nn.Module):
             return torch.tanh(x)
         elif self.forward_activation == 'relu':
             return F.relu(x)
+        elif self.forward_activation == 'elu':
+            return F.elu(x)
         elif self.forward_activation == 'linear':
             return x
         elif self.forward_activation == 'leakyrelu':
