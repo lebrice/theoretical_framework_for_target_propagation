@@ -293,17 +293,17 @@ def add_command_line_args(parser: argparse.ArgumentParser = None):
                              '(in the DDTP-RHL variants).'
                              '. Default: %(default)s.')
     sgroup.add_argument('--hidden_activation', type=str, default='tanh',
-                        choices=['tanh', 'relu', 'linear', 'leakyrelu',
+                        choices=['tanh', 'relu', 'linear', 'leakyrelu', "elu",
                                  'sigmoid'],
                         help='Activation function used for the hidden layers. '
                              'Default: $(default)s.')
     sgroup.add_argument('--output_activation', type=str, default='softmax',
-                        choices=['tanh', 'relu', 'linear', 'leakyrelu',
+                        choices=['tanh', 'relu', 'linear', 'leakyrelu', "elu",
                                  'sigmoid', 'softmax'],
                         help='Activation function used for the output. '
                              'Default: $(default)s.')
     sgroup.add_argument('--fb_activation', type=str, default=None,
-                        choices=['tanh', 'relu', 'linear', 'leakyrelu',
+                        choices=['tanh', 'relu', 'linear', 'leakyrelu', "elu",
                                  'sigmoid'],
                         help='Activation function used for the feedback targets'
                              'for the hidden layers. Default the same as '
