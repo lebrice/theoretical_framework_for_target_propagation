@@ -271,6 +271,14 @@ class DTPLayer(nn.Module):
             J = torch.ones_like(a)
             J[a < 0.] = 0.
             return J
+        elif self.forward_activation == "elu":
+            from torch.nn.functional import elu
+            from torch.nn import ELU
+            Js = torch.autograd.grad(elu(a), a, grad_outputs=torch.ones_like(a), retain_graph=True, only_inputs=True)
+            J = Js[0].detach()
+            # \max(0,x) + \min(0, \alpha * (\exp(x) - 1))`.
+            # J = a.grad_fn(elu(a), a, i)
+            return J
         elif self.forward_activation == 'leakyrelu':
             J = torch.ones_like(a)
             J[a < 0.] = 0.2
