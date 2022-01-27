@@ -674,7 +674,7 @@ class DDTPConvNetworkCIFAR(DDTPConvNetwork):
                            feedback_activation=feedback_activation,
                            nb_feedback_iterations = nb_feedback_iterations[1])
         l3 = DDTPMLPLayer(in_features=(8 * 8 * 64 if pool_padding == 1 else 7 * 7 * 64),
-                          out_features=512, size_output=10, bias=True,
+                          out_features=512, size_output=10, bias=bias,
                           forward_requires_grad=forward_requires_grad,
                           forward_activation=hidden_activation,
                           feedback_activation=feedback_activation,
@@ -682,7 +682,7 @@ class DDTPConvNetworkCIFAR(DDTPConvNetwork):
                           is_output=False,
                           recurrent_input=False,
                           nb_feedback_iterations = nb_feedback_iterations[2])
-        l4 = DDTPMLPLayer(512, 10, 10, bias=True,
+        l4 = DDTPMLPLayer(512, 10, 10, bias=bias,
                           forward_requires_grad=forward_requires_grad,
                           forward_activation='linear',
                           feedback_activation=feedback_activation,
