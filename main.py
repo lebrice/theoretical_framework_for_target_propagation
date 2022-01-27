@@ -473,6 +473,144 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
     vscode.
     """
 
+    def __post_init__(self):
+        self.save_angle = (
+            self.save_GN_activations_angle
+            or self.save_BP_activations_angle
+            or self.save_BP_angle
+            or self.save_GN_angle
+            or self.save_GNT_angle
+        )
+        print(self)
+
+        ### Create summary log writer
+        curdir = os.path.curdir
+        if self.out_dir is None:
+            out_dir = os.path.join(curdir, "logs",)
+            self.out_dir = out_dir
+        else:
+            out_dir = os.path.join(curdir, self.out_dir)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+        print("Logging at {}".format(out_dir))
+
+        with open(os.path.join(out_dir, "self.txt"), "w") as f:
+            json.dump(self.__dict__, f, indent=2)
+
+        if self.dataset in ["mnist", "fashion_mnist", "cifar10"]:
+            self.classification = True
+        else:
+            self.classification = False
+
+        if self.dataset in ["student_teacher", "boston"]:
+            self.regression = True
+        else:
+            self.regression = False
+
+        # initializing command line arguments if None
+        if self.output_activation is None:
+            if self.classification:
+                self.output_activation = "softmax"
+            elif self.regression:
+                self.output_activation = "linear"
+            else:
+                raise ValueError("Dataset {} is not supported.".format(self.dataset))
+
+        if self.fb_activation is None:
+            self.fb_activation = self.hidden_activation
+
+        if self.hidden_fb_activation is None:
+            self.hidden_fb_activation = self.hidden_activation
+
+        if self.optimizer_fb is None:
+            self.optimizer_fb = self.optimizer
+
+        # Manipulating command line arguments if asked
+        # TODO: They were manipulating these if they were strings, which isn't necessary anymore,
+        # however, it might be important to be able to load from their configs in the long run.
+        if isinstance(self.lr, str):
+            self.lr = utils.process_lr(self.lr)
+        if isinstance(self.lr_fb, str):
+            self.lr_fb = utils.process_lr(self.lr_fb)
+        if isinstance(self.nb_feedback_iterations, str):
+            self.nb_feedback_iterations = utils.process_nb_feedback_iterations(
+                self.nb_feedback_iterations
+            )
+        if isinstance(self.epsilon_fb, str):
+            self.epsilon_fb = utils.process_lr(self.epsilon_fb)
+        if isinstance(self.epsilon, str):
+            self.epsilon = utils.process_lr(self.epsilon)
+        if isinstance(self.size_hidden, str):
+            self.size_hidden = utils.process_hdim(self.size_hidden)
+
+        self.random_seed = int(self.random_seed)
+        if self.size_mlp_fb == "None":
+            self.size_mlp_fb = None
+        else:
+            self.size_mlp_fb = utils.process_hdim_fb(self.size_mlp_fb)
+
+        if self.normalize_lr:
+            self.lr = np.array(self.lr) / self.target_stepsize
+
+        if self.network_type in ["GN", "GN2"]:
+            # if the GN variant of the network is used, the fb weights do not need
+            # to be trained
+            self.freeze_fb_weights = True
+
+        if self.network_type == "DFA":
+            # manipulate cmd arguments such that we use a DMLPDTP2 network with
+            # linear MLP's with fixed weights
+            self.freeze_fb_weights = True
+            self.network_type = "DMLPDTP2"
+            self.size_mlp_fb = None
+            self.fb_activation = "linear"
+            self.train_randomized = False
+
+        if self.network_type == "DFAConv":
+            self.freeze_fb_weights = True
+            self.network_type = "DDTPConv"
+            self.fb_activation = "linear"
+            self.train_randomized = False
+
+        if self.network_type == "DFAConvCIFAR":
+            self.freeze_fb_weights = True
+            self.network_type = "DDTPConvCIFAR"
+            self.fb_activation = "linear"
+            self.train_randomized = False
+
+        if self.network_type in ["DTPDR"]:
+            self.diff_rec_loss = True
+        else:
+            self.diff_rec_loss = False
+
+        if self.network_type in [
+            "DKDTP",
+            "DKDTP2",
+            "DMLPDTP",
+            "DMLPDTP2",
+            "DDTPControl",
+            "DDTPConv",
+            "DDTPConvCIFAR",
+            "DDTPConvControlCIFAR",
+        ]:
+            self.direct_fb = True
+        else:
+            self.direct_fb = False
+
+        if isinstance(self.gn_damping, str) and "," in self.gn_damping:
+            self.gn_damping = utils.str_to_list(self.gn_damping, type="float")
+        else:
+            self.gn_damping = float(self.gn_damping)
+
+        # Checking valid combinations of command line arguments
+        if self.shallow_training:
+            if not self.network_type == "BP":
+                raise ValueError(
+                    "The shallow_training method is only implemented"
+                    "in combination with BP. Make sure to set "
+                    "the network_type argument on BP."
+                )
+
 
 def add_command_line_args_v2(parser: simple_parsing.ArgumentParser = None):
     ### Parse CLI arguments.
@@ -481,6 +619,7 @@ def add_command_line_args_v2(parser: simple_parsing.ArgumentParser = None):
     )
 
     parser.add_arguments(Args, dest="")
+    return parser
 
 
 def add_command_line_args(parser: argparse.ArgumentParser = None):
