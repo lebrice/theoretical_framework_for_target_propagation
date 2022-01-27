@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import ClassVar
 import torch
 from torch import nn
 import numpy as np
@@ -645,35 +646,37 @@ class DDTPConvNetwork(nn.Module):
 
 
 class DDTPConvNetworkCIFAR(DDTPConvNetwork):
+    # NOTE: Our repo's LeNet uses a maxpool with padding of 0, but theirs uses padding of 1!
+    # NOTE: Using a class variable, as a hacky way to change this without adding a command-line arg.
+    pool_padding: ClassVar[int] = 1
+    
     def __init__(self, bias=True, hidden_activation='tanh',
                  feedback_activation='linear', initialization='xavier_normal',
                  sigma=0.1, plots=None,
                  forward_requires_grad=False,
                  nb_feedback_iterations = [10, 20, 55, 20]):
         nn.Module.__init__(self)
-        # NOTE: Our repo's LeNet uses a maxpool with padding of 0, but theirs uses padding of 1!
-        # pool_padding = 1
-        pool_padding = 0
-        l1 = DDTPConvLayer(3, 32, (5, 5), output_size=10, feature_size=[32, 16, 16] if pool_padding==1 else [32, 15, 15],
+        
+        l1 = DDTPConvLayer(3, 32, (5, 5), output_size=10, feature_size=[32, 16, 16] if type(self).pool_padding==1 else [32, 15, 15],
                            stride=1, padding=2, dilation=1, groups=1,
-                           bias=bias, padding_mode='zeros',
+                           bias=True, padding_mode='zeros',
                            initialization=initialization,
                            pool_type='max', pool_kernel_size=(3, 3),
-                           pool_stride=(2, 2), pool_padding=pool_padding, pool_dilation=1,
+                           pool_stride=(2, 2), pool_padding=type(self).pool_padding, pool_dilation=1,
                            forward_activation=hidden_activation,
                            feedback_activation=feedback_activation,
                            nb_feedback_iterations = nb_feedback_iterations[0])
         l2 = DDTPConvLayer(32, 64, (5, 5), output_size=10,
-                           feature_size=[64, 8, 8] if pool_padding==1 else [64, 7, 7],
+                           feature_size=[64, 8, 8] if type(self).pool_padding==1 else [64, 7, 7],
                            stride=1, padding=2, dilation=1, groups=1,
-                           bias=bias, padding_mode='zeros',
+                           bias=True, padding_mode='zeros',
                            initialization=initialization,
                            pool_type='max', pool_kernel_size=(3, 3),
-                           pool_stride=(2, 2), pool_padding=pool_padding, pool_dilation=1,
+                           pool_stride=(2, 2), pool_padding=type(self).pool_padding, pool_dilation=1,
                            forward_activation=hidden_activation,
                            feedback_activation=feedback_activation,
                            nb_feedback_iterations = nb_feedback_iterations[1])
-        l3 = DDTPMLPLayer(in_features=(8 * 8 * 64 if pool_padding == 1 else 7 * 7 * 64),
+        l3 = DDTPMLPLayer(in_features=(8 * 8 * 64 if type(self).pool_padding == 1 else 7 * 7 * 64),
                           out_features=512, size_output=10, bias=bias,
                           forward_requires_grad=forward_requires_grad,
                           forward_activation=hidden_activation,

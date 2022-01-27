@@ -111,8 +111,8 @@ class TrainOptions(Serializable):
     lr_fb: float = 0.000101149118237
     """ Learning rate of optimizer for the feedback parameters. """
 
-    nb_feedback_iterations: int = 1
-    """ Number of feedback weight training iterations per batch. """
+    nb_feedback_iterations: List[int] = list_field(1)
+    """ Number of feedback weight training iterations per batch, *for each layer*. """
 
     target_stepsize: float = 0.01
     """ Step size for computing the output target based on the output gradient. """
@@ -546,7 +546,7 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
         self.random_seed = int(self.random_seed)
         if self.size_mlp_fb == "None":
             self.size_mlp_fb = None
-        else:
+        elif isinstance(self.size_mlp_fb, str):
             self.size_mlp_fb = utils.process_hdim_fb(self.size_mlp_fb)
 
         if self.normalize_lr:
