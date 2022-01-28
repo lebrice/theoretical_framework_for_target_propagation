@@ -659,7 +659,7 @@ class DDTPConvNetworkCIFAR(DDTPConvNetwork):
         
         l1 = DDTPConvLayer(3, 32, (5, 5), output_size=10, feature_size=[32, 16, 16] if type(self).pool_padding==1 else [32, 15, 15],
                            stride=1, padding=2, dilation=1, groups=1,
-                           bias=True, padding_mode='zeros',
+                           bias=bias, padding_mode='zeros',
                            initialization=initialization,
                            pool_type='max', pool_kernel_size=(3, 3),
                            pool_stride=(2, 2), pool_padding=type(self).pool_padding, pool_dilation=1,
@@ -669,7 +669,7 @@ class DDTPConvNetworkCIFAR(DDTPConvNetwork):
         l2 = DDTPConvLayer(32, 64, (5, 5), output_size=10,
                            feature_size=[64, 8, 8] if type(self).pool_padding==1 else [64, 7, 7],
                            stride=1, padding=2, dilation=1, groups=1,
-                           bias=True, padding_mode='zeros',
+                           bias=bias, padding_mode='zeros',
                            initialization=initialization,
                            pool_type='max', pool_kernel_size=(3, 3),
                            pool_stride=(2, 2), pool_padding=type(self).pool_padding, pool_dilation=1,
