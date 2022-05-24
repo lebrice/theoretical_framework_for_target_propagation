@@ -88,20 +88,29 @@ class DDTPRHLLayer(DTPDRLLayer):
             that blows up the dimension of the output targets.
     """
 
-    def __init__(self, in_features, out_features, bias=True,
-                 forward_requires_grad=False, forward_activation='tanh',
-                 feedback_activation='tanh', hidden_feedback_dimension=500,
-                 initialization='orthogonal',
-                 recurrent_input = False):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        bias=True,
+        forward_requires_grad=False,
+        forward_activation="tanh",
+        feedback_activation="tanh",
+        hidden_feedback_dimension=500,
+        initialization="orthogonal",
+        recurrent_input=False,
+    ):
         # Warning: if the __init__ method of DTPLayer gets new/extra arguments,
         # this should also be incorporated here
-        super().__init__(in_features=in_features,
-                         out_features=out_features,
-                         bias=bias,
-                         forward_requires_grad=forward_requires_grad,
-                         forward_activation=forward_activation,
-                         feedback_activation=feedback_activation,
-                         initialization=initialization)
+        super().__init__(
+            in_features=in_features,
+            out_features=out_features,
+            bias=bias,
+            forward_requires_grad=forward_requires_grad,
+            forward_activation=forward_activation,
+            feedback_activation=feedback_activation,
+            initialization=initialization,
+        )
 
         self._recurrent_input = recurrent_input
         # Now we need to overwrite the initialization of the feedback weights,
@@ -113,33 +122,30 @@ class DDTPRHLLayer(DTPDRLLayer):
         else:
             n_fb = hidden_feedback_dimension
 
-        self._feedbackweights = nn.Parameter(torch.Tensor(out_features,
-                                                          n_fb),
-                                                          requires_grad=False)
+        self._feedbackweights = nn.Parameter(torch.Tensor(out_features, n_fb), requires_grad=False)
         if bias:
-            self._feedbackbias = nn.Parameter(torch.Tensor(out_features),
-                                              requires_grad=False)
+            self._feedbackbias = nn.Parameter(torch.Tensor(out_features), requires_grad=False)
         else:
             self._feedbackbias = None
 
-        if initialization == 'orthogonal':
-            gain = np.sqrt(6. / (out_features + hidden_feedback_dimension))
+        if initialization == "orthogonal":
+            gain = np.sqrt(6.0 / (out_features + hidden_feedback_dimension))
             nn.init.orthogonal_(self._feedbackweights, gain=gain)
-        elif initialization == 'xavier':
+        elif initialization == "xavier":
             nn.init.xavier_uniform_(self._feedbackweights)
-        elif initialization == 'xavier_normal':
+        elif initialization == "xavier_normal":
             nn.init.xavier_normal_(self._feedbackweights)
         else:
-            raise ValueError('Provided weight initialization "{}" is not '
-                             'supported.'.format(initialization))
+            raise ValueError(
+                'Provided weight initialization "{}" is not ' "supported.".format(initialization)
+            )
 
         if bias:
             nn.init.constant_(self._feedbackbias, 0)
 
     def propagate_backward(self, fb_hidden_layer_activation):
         if self._recurrent_input:
-            in_tensor = torch.cat((fb_hidden_layer_activation,
-                                   self.activations), dim=1)
+            in_tensor = torch.cat((fb_hidden_layer_activation, self.activations), dim=1)
         else:
             in_tensor = fb_hidden_layer_activation
         h = in_tensor.mm(self.feedbackweights.t())
@@ -169,11 +175,9 @@ class DDTPRHLLayer(DTPDRLLayer):
 
         return h_target_current
 
-
-    def compute_feedback_gradients(self, h_current_corrupted,
-                                   h_fb_hidden_corrupted,
-                                   h_fb_hidden_noncorrupted,
-                                   sigma):
+    def compute_feedback_gradients(
+        self, h_current_corrupted, h_fb_hidden_corrupted, h_fb_hidden_noncorrupted, sigma
+    ):
         """
         Compute the feedback gradients according to the DRL and save the gradients
         in the .grad attributes of the feedback weights.
@@ -193,19 +197,18 @@ class DDTPRHLLayer(DTPDRLLayer):
         h_current_noncorrupted = self.activations
 
         h_current_reconstructed = self.backward(
-            h_fb_hidden_corrupted,
-            h_current_noncorrupted,
-            h_fb_hidden_noncorrupted
+            h_fb_hidden_corrupted, h_current_noncorrupted, h_fb_hidden_noncorrupted
         )
 
         if sigma <= 0:
-            raise ValueError('Sigma should be greater than zero when using the'
-                             'difference reconstruction loss. Given sigma = '
-                             '{}'.format(sigma))
+            raise ValueError(
+                "Sigma should be greater than zero when using the"
+                "difference reconstruction loss. Given sigma = "
+                "{}".format(sigma)
+            )
 
-        scale = 1 / sigma ** 2
-        reconstruction_loss = scale * F.mse_loss(h_current_reconstructed,
-                                                 h_current_corrupted)
+        scale = 1 / sigma**2
+        reconstruction_loss = scale * F.mse_loss(h_current_reconstructed, h_current_corrupted)
 
         self.save_feedback_gradients(reconstruction_loss)
 
@@ -213,18 +216,26 @@ class DDTPRHLLayer(DTPDRLLayer):
 
 
 class DDTPMLPLayer(DTPDRLLayer):
-    """ Direct DTP layer with a fully trained multilayer perceptron (MLP) as direct feedback connections.
+    """Direct DTP layer with a fully trained multilayer perceptron (MLP) as direct feedback connections.
     DDTP-linear is a special case of DDTPMLP with a single-layer linear MLP as direct
      feedback connection."""
 
-    def __init__(self, in_features, out_features, size_output, bias=True,
-                 forward_requires_grad=False, forward_activation='tanh',
-                 feedback_activation='tanh', size_hidden_fb=[100],
-                 fb_hidden_activation=None,
-                 initialization='orthogonal',
-                 is_output=False,
-                 recurrent_input=False,
-                 nb_feedback_iterations = 1):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        size_output,
+        bias=True,
+        forward_requires_grad=False,
+        forward_activation="tanh",
+        feedback_activation="tanh",
+        size_hidden_fb=[100],
+        fb_hidden_activation=None,
+        initialization="orthogonal",
+        is_output=False,
+        recurrent_input=False,
+        nb_feedback_iterations=1,
+    ):
         """
 
         Args:
@@ -245,13 +256,15 @@ class DDTPMLPLayer(DTPDRLLayer):
         """
         # Warning: if the __init__ method of DTPLayer gets new/extra arguments,
         # this should also be incorporated here
-        super().__init__(in_features=in_features,
-                         out_features=out_features,
-                         bias=bias,
-                         forward_requires_grad=forward_requires_grad,
-                         forward_activation=forward_activation,
-                         feedback_activation=feedback_activation,
-                         initialization=initialization)
+        super().__init__(
+            in_features=in_features,
+            out_features=out_features,
+            bias=bias,
+            forward_requires_grad=forward_requires_grad,
+            forward_activation=forward_activation,
+            feedback_activation=feedback_activation,
+            initialization=initialization,
+        )
 
         # Now we need to overwrite the initialization of the feedback weights,
         # as we now need an MLP as feedback connection from the output towards the
@@ -268,22 +281,24 @@ class DDTPMLPLayer(DTPDRLLayer):
         if fb_hidden_activation is None:
             fb_hidden_activation = feedback_activation
 
-        #TODO: so if its the last layer it does not get a backward layer
+        # TODO: so if its the last layer it does not get a backward layer
         if not is_output:
             if recurrent_input:
                 n_in = size_output + out_features
             else:
                 n_in = size_output
-            self._fb_mlp = BPNetwork(n_in=n_in,
-                                     n_hidden=size_hidden_fb,
-                                     n_out=out_features,
-                                     activation=fb_hidden_activation,
-                                     output_activation=feedback_activation,
-                                     bias=bias,
-                                     initialization=initialization)
+            self._fb_mlp = BPNetwork(
+                n_in=n_in,
+                n_hidden=size_hidden_fb,
+                n_out=out_features,
+                activation=fb_hidden_activation,
+                output_activation=feedback_activation,
+                bias=bias,
+                initialization=initialization,
+            )
             self._fb_mlp.set_requires_grad(False)
         else:
-            self._fb_mlp = None # output does not need to have a feedback path
+            self._fb_mlp = None  # output does not need to have a feedback path
 
     @property
     def feedbackweights(self):
@@ -292,13 +307,13 @@ class DDTPMLPLayer(DTPDRLLayer):
         else:
             return None
         print("Returns nothing!")
+
     @property
     def feedbackbias(self):
         if not self._has_hidden_fb_layers:
             return self._fb_mlp.layers[0].bias
         else:
             return None
-
 
     def set_feedback_requires_grad(self, value):
         """
@@ -308,7 +323,7 @@ class DDTPMLPLayer(DTPDRLLayer):
             value (bool): True or False
         """
         if not isinstance(value, bool):
-            raise TypeError('The given value should be a boolean.')
+            raise TypeError("The given value should be a boolean.")
 
         self._fb_mlp.set_requires_grad(value)
 
@@ -339,10 +354,9 @@ class DDTPMLPLayer(DTPDRLLayer):
 
         return h_target_current
 
-    def compute_feedback_gradients(self, h_current_corrupted,
-                                   output_corrupted,
-                                   output_noncorrupted,
-                                   sigma):
+    def compute_feedback_gradients(
+        self, h_current_corrupted, output_corrupted, output_noncorrupted, sigma
+    ):
 
         """
         Compute the gradients of the feedback weights and bias, based on the
@@ -356,17 +370,18 @@ class DDTPMLPLayer(DTPDRLLayer):
 
         h_current_noncorrupted = self.activations
 
-        h_current_reconstructed = self.backward(output_corrupted,
-                                                h_current_noncorrupted,
-                                                output_noncorrupted)
+        h_current_reconstructed = self.backward(
+            output_corrupted, h_current_noncorrupted, output_noncorrupted
+        )
 
         if sigma <= 0:
-            raise ValueError('Sigma should be greater than zero when using the'
-                             'difference reconstruction loss. Given sigma = '
-                             '{}'.format(sigma))
-        scale = 1/sigma**2
-        reconstruction_loss = scale * F.mse_loss(h_current_reconstructed,
-                                         h_current_corrupted)
+            raise ValueError(
+                "Sigma should be greater than zero when using the"
+                "difference reconstruction loss. Given sigma = "
+                "{}".format(sigma)
+            )
+        scale = 1 / sigma**2
+        reconstruction_loss = scale * F.mse_loss(h_current_reconstructed, h_current_corrupted)
 
         self.save_feedback_gradients(reconstruction_loss)
 
@@ -382,46 +397,49 @@ class DDTPMLPLayer(DTPDRLLayer):
 
         """
         self.reconstruction_loss = reconstruction_loss.item()
-        grads = torch.autograd.grad(reconstruction_loss,
-                                    self._fb_mlp.parameters(),
-                                    retain_graph=False)
+        grads = torch.autograd.grad(
+            reconstruction_loss, self._fb_mlp.parameters(), retain_graph=False
+        )
         for i, param in enumerate(self._fb_mlp.parameters()):
             param.grad = grads[i].detach()
 
     def get_feedback_parameters(self):
         return self._fb_mlp.parameters()
 
-    def save_logs(self, writer, step, name, no_gradient=False,
-                  no_fb_param=False):
+    def save_logs(self, writer, step, name, no_gradient=False, no_fb_param=False):
         if self._has_hidden_fb_layers or self._is_output:
-            DTPLayer.save_logs(self=self, writer=writer, step=step,
-                           name=name, no_gradient=no_gradient,
-                           no_fb_param=True)
+            DTPLayer.save_logs(
+                self=self,
+                writer=writer,
+                step=step,
+                name=name,
+                no_gradient=no_gradient,
+                no_fb_param=True,
+            )
         else:
-            DTPLayer.save_logs(self=self, writer=writer, step=step,
-                               name=name, no_gradient=no_gradient,
-                               no_fb_param=False)
+            DTPLayer.save_logs(
+                self=self,
+                writer=writer,
+                step=step,
+                name=name,
+                no_gradient=no_gradient,
+                no_fb_param=False,
+            )
 
 
 class DDTPControlLayer(DDTPMLPLayer):
-    """ Direct DTP layer that does not use the difference trick in its
+    """Direct DTP layer that does not use the difference trick in its
     reconstruction loss, as a control for the other methods."""
-    def compute_feedback_gradients(self, h_current_corrupted,
-                                   output_corrupted,
-                                   output_noncorrupted,
-                                   sigma):
+
+    def compute_feedback_gradients(
+        self, h_current_corrupted, output_corrupted, output_noncorrupted, sigma
+    ):
         self.set_feedback_requires_grad(True)
 
         h_current_reconstructed = self.propagate_backward(output_corrupted)
 
-        reconstruction_loss = F.mse_loss(h_current_reconstructed,
-                                                 h_current_corrupted)
+        reconstruction_loss = F.mse_loss(h_current_reconstructed, h_current_corrupted)
 
         self.save_feedback_gradients(reconstruction_loss)
 
         self.set_feedback_requires_grad(False)
-
-
-
-
-

@@ -25,7 +25,6 @@ For more usage information, please check out
   $ python3 main --help
 
 """
-
 import argparse
 import json
 from typing import Dict, List, Optional
@@ -77,7 +76,7 @@ from dataclasses import dataclass
 
 @dataclass
 class DatasetOptions(Serializable):
-    """ Dataset options """
+    """Dataset options"""
 
     # Used dataset for classification/regression.
     dataset: str = choice("mnist", "student_teacher", "fashion_mnist", "cifar10", default="cifar10")
@@ -93,7 +92,7 @@ class DatasetOptions(Serializable):
 
 @dataclass
 class TrainOptions(Serializable):
-    """ Training options """
+    """Training options"""
 
     epochs: int = 90
     """ Number of training epochs. """
@@ -239,7 +238,7 @@ class TrainOptions(Serializable):
 
 @dataclass
 class AdamOptions(Serializable):
-    """ Training options for the Adam optimizer. """
+    """Training options for the Adam optimizer."""
 
     beta1: float = 0.99
     """ beta1 training hyperparameter for the adam optimizer. """
@@ -247,7 +246,7 @@ class AdamOptions(Serializable):
     beta2: float = 0.99
     """ beta2 training hyperparameter for the adam optimizer. """
 
-    epsilon: float = 1e-4
+    epsilon: list[float] = field(default_factory=[1e-4].copy)
     """epsilon training hyperparameter for the adam optimizer. """
 
     beta1_fb: float = 0.99
@@ -262,7 +261,7 @@ class AdamOptions(Serializable):
 
 @dataclass
 class NetworkOptions(Serializable):
-    """ Network options """
+    """Network options"""
 
     hidden_layers: Optional[List[int]] = None
     """ Number of hidden layers. """
@@ -355,8 +354,9 @@ class NetworkOptions(Serializable):
     """
 
 
+@dataclass
 class MiscOptions(Serializable):
-    """ Miscellaneous options. """
+    """Miscellaneous options."""
 
     no_cuda: bool = False
     """ Flag to disable GPU usage. """
@@ -387,7 +387,7 @@ class MiscOptions(Serializable):
 
 @dataclass
 class LoggingOptions(Serializable):
-    """ Logging options. """
+    """Logging options."""
 
     out_dir: str = "logs"
     """ Relative path to directory where the logs are saved. """
@@ -464,14 +464,25 @@ class LoggingOptions(Serializable):
     """
 
 
+from simple_parsing.helpers.flatten import FlattenedAccess
+
+
 @dataclass
 class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOptions, LoggingOptions):
-    """ Command-line options. 
-    
+    """Command-line options.
+
     NOTE: Typed equivalent to all the code below. Using docstrings for the fields makes it possible
     to see directly the description of each argument when hovering over it in most editors e.g.
     vscode.
     """
+
+    # TODO: Would be nice to have these, instead of having everything at the same level.
+    # dataset: DatasetOptions = field(default_factory=DatasetOptions)
+    # training: TrainOptions = field(default_factory=TrainOptions)
+    # adam: AdamOptions = field(default_factory=AdamOptions)
+    # network: NetworkOptions = field(default_factory=NetworkOptions)
+    # misc: MiscOptions = field(default_factory=MiscOptions)
+    # logging: LoggingOptions = field(default_factory=LoggingOptions)
 
     def __post_init__(self):
         self.save_angle = (
@@ -486,7 +497,10 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
         ### Create summary log writer
         curdir = os.path.curdir
         if self.out_dir is None:
-            out_dir = os.path.join(curdir, "logs",)
+            out_dir = os.path.join(
+                curdir,
+                "logs",
+            )
             self.out_dir = out_dir
         else:
             out_dir = os.path.join(curdir, self.out_dir)
@@ -1206,7 +1220,10 @@ def add_command_line_args(parser: argparse.ArgumentParser = None):
         " should be computed and saved.",
     )
     vgroup.add_argument(
-        "--plots", type=str, default="save", choices=[None, "save", "save_and_show", "compute"],
+        "--plots",
+        type=str,
+        default="save",
+        choices=[None, "save", "save_and_show", "compute"],
     )
     vgroup.add_argument(
         "--save_loss_plot",
@@ -1283,7 +1300,10 @@ def postprocess_args(args: argparse.Namespace) -> argparse.Namespace:
     ### Create summary log writer
     curdir = os.path.curdir
     if args.out_dir is None:
-        out_dir = os.path.join(curdir, "logs",)
+        out_dir = os.path.join(
+            curdir,
+            "logs",
+        )
         args.out_dir = out_dir
     else:
         out_dir = os.path.join(curdir, args.out_dir)
@@ -1659,4 +1679,3 @@ def launch(args: argparse.Namespace):
 if __name__ == "__main__":
     # print(os.getcwd())
     run()
-
