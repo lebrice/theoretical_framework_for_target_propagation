@@ -252,15 +252,22 @@ class DDTPConvLayer(nn.Module):
             raise TypeError("The given value should be a boolean.")
         self._feedbackweights.requires_grad = value
 
-    def compute_feedback_gradients(self, h_corrupted, output_corrupted, output_activation, sigma):
+    def compute_feedback_gradients(
+        self,
+        h_corrupted: Tensor,
+        output_corrupted: Tensor,
+        output_activation: Tensor,
+        sigma: float,
+    ):
         self.set_feedback_requires_grad(True)
         h_activation = self.activations
+        assert h_activation is not None
         h_reconstructed = self.backward(output_corrupted, h_activation, output_activation)
         if sigma <= 0:
             raise ValueError(
                 "Sigma should be greater than zero when using the"
                 "difference reconstruction loss. Given sigma = "
-                "{}".format(sigma)
+                f"{sigma}"
             )
         scale = 1 / sigma**2
         reconstruction_loss = scale * F.mse_loss(h_reconstructed, h_corrupted)
