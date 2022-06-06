@@ -283,18 +283,19 @@ class DDTPConvNetwork(nn.Module):
                     h_target, previous_activations, self.forward_requires_grad
                 )
 
-    def compute_feedback_gradients(self, i):
-        self.reconstruction_loss_index = i
-        h = self.layers[i].activations
+    def compute_feedback_gradients(self, layer_index: int):
+        self.reconstruction_loss_index = layer_index
+        h = self.layers[layer_index].activations
+        assert h is not None
         h_corrupted = h + self.sigma * torch.randn_like(h)
         # h_corrupted = self.layers[i].activations + self.sigma * torch.randn_like(
         #     self.layers[i].activations
         # )
 
-        output_corrupted = self.dummy_forward(h_corrupted, i)
+        output_corrupted = self.dummy_forward(h_corrupted, layer_index)
         output_noncorrupted = self.layers[-1].activations
 
-        self.layers[i].compute_feedback_gradients(
+        self.layers[layer_index].compute_feedback_gradients(
             h_corrupted, output_corrupted, output_noncorrupted, self.sigma
         )
 

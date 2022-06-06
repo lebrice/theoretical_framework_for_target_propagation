@@ -33,24 +33,46 @@ import random
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
+import os
 
-# TODO: Will make it impossible to run this as `python main.py ...`
-from .lib.train import train, train_bp
-from .lib import utils
-from .lib import builders
-
+from typing import Literal
 from tensorboardX import SummaryWriter
 import os.path
 import pickle
 
-# TODO: Local fix for mac
-import os
+try:
+    from .lib.train import train, train_bp
+    from .lib import utils
+    from .lib import builders
+except ImportError:
+    from lib.train import train, train_bp
+    from lib import utils
+    from lib import builders
 
+# TODO: Local fix for mac
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
+NetworkName = Literal[
+    "DTP",
+    "LeeDTP",
+    "DTPDR",
+    "DKDTP2",
+    "DMLPDTP2",
+    "BP",
+    "GN2",
+    "DFA",
+    "DDTPControl",
+    "DDTPConv",
+    "DFAConv",
+    "BPConv",
+    "DDTPConvCIFAR",
+    "DFAConvCIFAR",
+    "BPConvCIFAR",
+    "DDTPConvControlCIFAR",
+]
 
-def run(overwrite_defaults: Dict = None):
+
+def run(overwrite_defaults: Optional[dict] = None):
     """
     - Parsing command-line arguments
     - Creating synthetic regression data
@@ -70,7 +92,9 @@ def run(overwrite_defaults: Dict = None):
 
 
 import simple_parsing
-from simple_parsing import Serializable, choice, ArgumentParser, field, list_field
+from simple_parsing import choice, ArgumentParser, field, list_field
+from simple_parsing.helpers.serialization.serializable import Serializable
+from simple_parsing.helpers.flatten import FlattenedAccess
 from dataclasses import dataclass
 
 
@@ -305,7 +329,7 @@ class NetworkOptions(Serializable):
     no_bias: bool = False
     """ Flag for not using biases in the network. """
 
-    network_type: str = choice(
+    network_type: NetworkName = choice(
         "DTP",
         "LeeDTP",
         "DTPDR",
@@ -335,7 +359,7 @@ class NetworkOptions(Serializable):
     network.
     """
 
-    size_mlp_fb: List[int] = list_field(100)
+    size_mlp_fb: list[int] = list_field(100)
     """ The size of the hidden layers of the MLP that is used in the DMLPDTP layers.
     """
     # NOTE: Removed this:
@@ -462,9 +486,6 @@ class LoggingOptions(Serializable):
     """Flag indicating whether the norm ratio between the nullspace components of the parameter 
     updates and the updates themselves should be computed and saved.
     """
-
-
-from simple_parsing.helpers.flatten import FlattenedAccess
 
 
 @dataclass

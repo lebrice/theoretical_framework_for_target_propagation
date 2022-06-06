@@ -18,7 +18,8 @@ In this python file, the layer classes for layers with direct (skip) feedback
 connections should be implemented.
 
 """
-
+from __future__ import annotations
+from torch import Tensor
 from .dtp_layers import DTPLayer
 from .dtpdrl_layers import DTPDRLLayer
 from .networks import BPNetwork
@@ -355,7 +356,11 @@ class DDTPMLPLayer(DTPDRLLayer):
         return h_target_current
 
     def compute_feedback_gradients(
-        self, h_current_corrupted, output_corrupted, output_noncorrupted, sigma
+        self,
+        h_current_corrupted: Tensor,
+        output_corrupted: Tensor,
+        output_noncorrupted: Tensor,
+        sigma,
     ):
 
         """

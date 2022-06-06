@@ -14,6 +14,7 @@
 # limitations under the License.
 from __future__ import annotations
 import typing
+
 from . import networks, direct_feedback_networks, conv_network
 import torch
 from torch.utils.data import Dataset
@@ -29,6 +30,7 @@ if typing.TYPE_CHECKING:
         NetworkOptions,
         MiscOptions,
         LoggingOptions,
+        NetworkName,
     )
 
 
@@ -181,6 +183,9 @@ def build_network(args: Args):
     Returns: a network
 
     """
+    network_type: NetworkName = network_type
+
+    n_hidden: list[int] | None = None
     if args.hidden_layers is None:
         if isinstance(args.size_hidden, list):
             n_hidden = args.size_hidden
@@ -195,28 +200,25 @@ def build_network(args: Args):
         or args.save_GN_activations_angle
         or args.save_BP_activations_angle
         or args.save_GNT_angle
-        or args.network_type in ["GN", "GN2"]
+        or network_type in ["GN", "GN2"]
         or args.output_space_plot_bp
         or args.gn_damping_hpsearch
         or args.save_nullspace_norm_ratio
     )
+
+    ## Get the output activation.
+    output_activation = args.output_activation
     if args.classification:
-        assert args.output_activation == "softmax" or args.output_activation == "sigmoid", (
-            "Output layer should " "represent probabilities => use softmax or sigmoid!"
-        )
-        if args.output_activation == "sigmoid":
-            if args.network_type == "LeeDTP":
-                raise ValueError(
-                    "For the LeeDTP network, only softmax output" "activtion is supported"
-                )
-            output_activation = "sigmoid"
-        elif args.output_activation == "softmax":
-            output_activation = "linear"  # the softmax function is incorporated
-            # in the loss function in Pytorch
-        else:
-            assert False
-    else:
-        output_activation = args.output_activation
+        assert args.output_activation in [
+            "softmax",
+            "sigmoid",
+        ], "Output layer should represent probabilities => use softmax or sigmoid!"
+        if network_type == "LeeDTP" and output_activation != "softmax":
+            raise ValueError("For the LeeDTP network, only softmax output activtion is supported")
+
+        if args.output_activation == "softmax":
+            # the softmax function is incorporated in the loss function in Pytorch
+            output_activation = "linear"
 
     kwargs = {
         "n_in": args.size_input,
@@ -232,8 +234,8 @@ def build_network(args: Args):
         "plots": args.plots,
     }
 
-    if args.network_type == "LeeDTP":
-        net = networks.LeeDTPNetwork(
+    if network_type == "LeeDTP":
+        return networks.LeeDTPNetwork(
             n_in=args.size_input,
             n_hidden=n_hidden,
             n_out=args.size_output,
@@ -243,35 +245,35 @@ def build_network(args: Args):
             initialization=args.initialization,
             forward_requires_grad=forward_requires_grad,
         )
-    elif args.network_type == "DTP":
-        net = networks.DTPNetwork(**kwargs)
-    elif args.network_type == "DTPDR":
-        net = networks.DTPDRLNetwork(**kwargs)
-    elif args.network_type == "DKDTP2":
-        net = direct_feedback_networks.DDTPRHLNetwork(
+    if network_type == "DTP":
+        return networks.DTPNetwork(**kwargs)
+    if network_type == "DTPDR":
+        return networks.DTPDRLNetwork(**kwargs)
+    if network_type == "DKDTP2":
+        return direct_feedback_networks.DDTPRHLNetwork(
             **kwargs,
             hidden_feedback_activation=args.hidden_fb_activation,
             hidden_feedback_dimension=args.size_hidden_fb,
             recurrent_input=args.recurrent_input,
         )
-    elif args.network_type == "DMLPDTP2":
-        net = direct_feedback_networks.DDTPMLPNetwork(
+    if network_type == "DMLPDTP2":
+        return direct_feedback_networks.DDTPMLPNetwork(
             **kwargs,
             size_hidden_fb=args.size_mlp_fb,
             fb_hidden_activation=args.hidden_fb_activation,
             recurrent_input=args.recurrent_input,
         )
-    elif args.network_type == "DDTPControl":
-        net = direct_feedback_networks.DDTPControlNetwork(
+    if network_type == "DDTPControl":
+        return direct_feedback_networks.DDTPControlNetwork(
             **kwargs,
             size_hidden_fb=args.size_mlp_fb,
             fb_hidden_activation=args.hidden_fb_activation,
             recurrent_input=args.recurrent_input,
         )
-    elif args.network_type == "GN2":
-        net = networks.GNTNetwork(**kwargs, damping=args.gn_damping_training)
-    elif args.network_type == "BP":
-        net = networks.BPNetwork(
+    if network_type == "GN2":
+        return networks.GNTNetwork(**kwargs, damping=args.gn_damping_training)
+    if network_type == "BP":
+        return networks.BPNetwork(
             n_in=args.size_input,
             n_hidden=n_hidden,
             n_out=args.size_output,
@@ -280,56 +282,38 @@ def build_network(args: Args):
             bias=not args.no_bias,
             initialization=args.initialization,
         )
-    elif args.network_type == "DDTPConv":
-        net = conv_network.DDTPConvNetwork(
-            bias=not args.no_bias,
-            hidden_activation=args.hidden_activation,
-            feedback_activation=args.fb_activation,
-            initialization=args.initialization,
-            sigma=args.sigma,
-            plots=args.plots,
-            forward_requires_grad=forward_requires_grad,
-            nb_feedback_iterations=args.nb_feedback_iterations,
-        )
-    elif args.network_type == "DDTPConvCIFAR":
-        net = conv_network.DDTPConvNetworkCIFAR(
-            bias=not args.no_bias,
-            hidden_activation=args.hidden_activation,
-            feedback_activation=args.fb_activation,
-            initialization=args.initialization,
-            sigma=args.sigma,
-            plots=args.plots,
-            forward_requires_grad=forward_requires_grad,
-            nb_feedback_iterations=args.nb_feedback_iterations,
-        )
-        args.network_type = "DDTPConv"
-    elif args.network_type == "DDTPConvControlCIFAR":
-        net = conv_network.DDTPConvControlNetworkCIFAR(
-            bias=not args.no_bias,
-            hidden_activation=args.hidden_activation,
-            feedback_activation=args.fb_activation,
-            initialization=args.initialization,
-            sigma=args.sigma,
-            plots=args.plots,
-            forward_requires_grad=forward_requires_grad,
-        )
-        args.network_type = "DDTPConv"
 
-    elif args.network_type == "BPConv":
-        net = conv_network.BPConvNetwork(
+    if network_type.startswith("DDTPConv"):
+        network_types = {
+            "DDTPConv": conv_network.DDTPConvNetwork,
+            "DDTPConvCIFAR": conv_network.DDTPConvNetworkCIFAR,
+            "DDTPConvControlCIFAR": conv_network.DDTPConvControlNetworkCIFAR,
+        }
+        network_kwargs = dict(
             bias=not args.no_bias,
             hidden_activation=args.hidden_activation,
+            feedback_activation=args.fb_activation,
             initialization=args.initialization,
+            sigma=args.sigma,
+            plots=args.plots,
+            forward_requires_grad=forward_requires_grad,
+            nb_feedback_iterations=args.nb_feedback_iterations,
         )
-    elif args.network_type == "BPConvCIFAR":
-        net = conv_network.BPConvNetworkCIFAR(
-            bias=not args.no_bias,
-            hidden_activation=args.hidden_activation,
-            initialization=args.initialization,
-        )
+        if network_type == "DDTPConvControlCIFAR":
+            network_kwargs.pop("nb_feedback_iterations")
+        args.network_type = "DDTPConv"
+        return network_types[network_type](**network_kwargs)
+
+    if network_type.startswith == "BPConv":
+        network_types = {
+            "BPConv": conv_network.BPConvNetwork,
+            "BPConvCIFAR": conv_network.BPConvNetworkCIFAR,
+        }
         args.network_type = "BPConv"
+        return network_types[network_type](
+            bias=not args.no_bias,
+            hidden_activation=args.hidden_activation,
+            initialization=args.initialization,
+        )
 
-    else:
-        raise ValueError("The provided network type {} is not supported".format(args.network_type))
-
-    return net
+    raise ValueError("The provided network type {} is not supported".format(args.network_type))
