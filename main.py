@@ -124,7 +124,7 @@ class TrainOptions(Serializable):
     batch_size: int = 100
     """ Training batch size. Choose divisor of "num_train". """
 
-    lr: List[float] = list_field(0.01)
+    lr: list[float] = list_field(0.01)
     """ Learning rate of optimizer for the forward parameters. You can either provide a single float
     that will be used as lr for all the layers, or a list of learning rates (e.g. [0.1,0.2,0.5]) 
     specifying a lr for each layer. The lenght of the list should be equal to num_hidden + 1.
@@ -134,7 +134,7 @@ class TrainOptions(Serializable):
     lr_fb: float = 0.000101149118237
     """ Learning rate of optimizer for the feedback parameters. """
 
-    nb_feedback_iterations: List[int] = list_field(1)
+    nb_feedback_iterations: list[int] = list_field(1)
     """ Number of feedback weight training iterations per batch, *for each layer*. """
 
     target_stepsize: float = 0.01
@@ -329,7 +329,7 @@ class NetworkOptions(Serializable):
     no_bias: bool = False
     """ Flag for not using biases in the network. """
 
-    network_type: NetworkName = choice(
+    network_type: str = choice(
         "DTP",
         "LeeDTP",
         "DTPDR",
@@ -532,33 +532,19 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
         with open(os.path.join(out_dir, "self.txt"), "w") as f:
             json.dump(self.__dict__, f, indent=2)
 
-        if self.dataset in ["mnist", "fashion_mnist", "cifar10"]:
-            self.classification = True
-        else:
-            self.classification = False
-
-        if self.dataset in ["student_teacher", "boston"]:
-            self.regression = True
-        else:
-            self.regression = False
+        self.classification = self.dataset in ["mnist", "fashion_mnist", "cifar10"]
+        self.regression = self.dataset in ["student_teacher", "boston"]
+        if not self.classification and not self.regression:
+            raise ValueError("Dataset {} is not supported.".format(self.dataset))
 
         # initializing command line arguments if None
-        if self.output_activation is None:
-            if self.classification:
-                self.output_activation = "softmax"
-            elif self.regression:
-                self.output_activation = "linear"
-            else:
-                raise ValueError("Dataset {} is not supported.".format(self.dataset))
+        self.output_activation = self.output_activation or (
+            "softmax" if self.classification else "linear"
+        )
 
-        if self.fb_activation is None:
-            self.fb_activation = self.hidden_activation
-
-        if self.hidden_fb_activation is None:
-            self.hidden_fb_activation = self.hidden_activation
-
-        if self.optimizer_fb is None:
-            self.optimizer_fb = self.optimizer
+        self.fb_activation = self.fb_activation or self.hidden_activation
+        self.hidden_fb_activation = self.hidden_fb_activation or self.hidden_activation
+        self.optimizer_fb = self.optimizer_fb or self.optimizer
 
         # Manipulating command line arguments if asked
         # TODO: They were manipulating these if they were strings, which isn't necessary anymore,
