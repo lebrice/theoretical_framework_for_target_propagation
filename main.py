@@ -259,6 +259,19 @@ class TrainOptions(Serializable):
     only_train_last_four_layers: bool = False
     """Only train the last four layers of the network."""
 
+    def __post_init__(self):
+        if self.optimizer_fb is None:
+            self.optimizer_fb = self.optimizer
+
+        if isinstance(self.lr, str):
+            self.lr = utils.process_lr(self.lr)
+        if isinstance(self.lr_fb, str):
+            self.lr_fb = utils.process_lr(self.lr_fb)
+        if isinstance(self.nb_feedback_iterations, str):
+            self.nb_feedback_iterations = utils.process_nb_feedback_iterations(
+                self.nb_feedback_iterations
+            )
+
 
 @dataclass
 class AdamOptions(Serializable):
@@ -281,6 +294,12 @@ class AdamOptions(Serializable):
 
     epsilon_fb: float = 1e-4
     """epsilon training hyperparameter for the adam feedback optimizer. """
+
+    def __post_init__(self):
+        if isinstance(self.epsilon_fb, str):
+            self.epsilon_fb = utils.process_lr(self.epsilon_fb)
+        if isinstance(self.epsilon, str):
+            self.epsilon = utils.process_lr(self.epsilon)
 
 
 @dataclass
@@ -359,7 +378,7 @@ class NetworkOptions(Serializable):
     network.
     """
 
-    size_mlp_fb: list[int] = list_field(100)
+    size_mlp_fb: Optional[list[int]] = list_field(100)
     """ The size of the hidden layers of the MLP that is used in the DMLPDTP layers.
     """
     # NOTE: Removed this:
@@ -487,6 +506,20 @@ class LoggingOptions(Serializable):
     updates and the updates themselves should be computed and saved.
     """
 
+    def setup_out_dir(self) -> None:
+        curdir = os.path.curdir
+        if self.out_dir is None:
+            self.out_dir = os.path.join(
+                curdir,
+                "logs",
+            )
+        else:
+            out_dir = os.path.join(curdir, self.out_dir)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+            self.out_dir = out_dir
+        print("Logging at {}".format(self.out_dir))
+
 
 @dataclass
 class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOptions, LoggingOptions):
@@ -599,12 +632,9 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
             self.fb_activation = "linear"
             self.train_randomized = False
 
-        if self.network_type in ["DTPDR"]:
-            self.diff_rec_loss = True
-        else:
-            self.diff_rec_loss = False
+        self.diff_rec_loss = self.network_type in ["DTPDR"]
 
-        if self.network_type in [
+        self.direct_fb = self.network_type in [
             "DKDTP",
             "DKDTP2",
             "DMLPDTP",
@@ -613,10 +643,7 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
             "DDTPConv",
             "DDTPConvCIFAR",
             "DDTPConvControlCIFAR",
-        ]:
-            self.direct_fb = True
-        else:
-            self.direct_fb = False
+        ]
 
         if isinstance(self.gn_damping, str) and "," in self.gn_damping:
             self.gn_damping = utils.str_to_list(self.gn_damping, type="float")
@@ -1302,7 +1329,7 @@ def postprocess_args(args: argparse.Namespace) -> argparse.Namespace:
         or args.save_GN_angle
         or args.save_GNT_angle
     )
-    print(args)
+    # print(args)
 
     ### Create summary log writer
     curdir = os.path.curdir

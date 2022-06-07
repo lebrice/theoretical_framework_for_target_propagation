@@ -19,29 +19,40 @@ import argparse
 import os
 import sys
 import numpy as np
-import main
+
+try:
+    from .main import run
+except ImportError:
+    from main import run
 
 
 def _override_cmd_arg(config):
     sys.argv = [sys.argv[0]]
     for k, v in config.items():
         if isinstance(v, bool):
-            cmd = '--%s' % k if v else ''
+            cmd = "--%s" % k if v else ""
         else:
-            cmd = '--%s=%s' % (k, str(v))
-        if not cmd == '':
+            cmd = "--%s=%s" % (k, str(v))
+        if not cmd == "":
             sys.argv.append(cmd)
 
-def run():
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_module', type=str,
-                        default='figure_scripts.config_toy_examples',
-                        help='The name of the module containing the config.')
+    parser.add_argument(
+        "--config_module",
+        type=str,
+        default="figure_scripts.config_toy_examples",
+        help="The name of the module containing the config.",
+    )
     args = parser.parse_args()
     config_module = importlib.import_module(args.config_module)
+    # TODO (@lebrice): Would be better to just overwrite the defaults through set_defaults, but
+    # they overwrite them at the argv stage, before they get parsed.
     _override_cmd_arg(config_module.config)
-    summary = main.run()
+    summary = run()
     return summary
 
-if __name__ == '__main__':
-    run()
+
+if __name__ == "__main__":
+    main()

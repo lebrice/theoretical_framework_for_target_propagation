@@ -16,10 +16,13 @@
 A collection of helper functions
 --------------------------------
 """
+from __future__ import annotations
+from typing import TypeVar, overload
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from tensorboardX import SummaryWriter
+from typing import Literal
 import os
 import pandas
 import warnings
@@ -758,19 +761,38 @@ def list_to_str(list_arg, delim=" "):
     return ret
 
 
-def str_to_list(string, delim=",", type="float"):
+T = TypeVar("T", int, float)
+
+
+@overload
+def str_to_list(string: str, delim: str, type: Literal["float"]) -> list[float]:
+    ...
+
+
+@overload
+def str_to_list(string: str, delim: str, type: Literal["int"]) -> list[int]:
+    ...
+
+
+@overload
+def str_to_list(string: str, delim: str, type: type[T]) -> list[T]:
+    ...
+
+
+def str_to_list(
+    string, delim=",", type: str | type[T] = "float"
+) -> list[T] | list[float] | list[int]:
     """Convert a str (that originated from a list) back
     to a list of floats."""
 
     if string[0] in ("[", "(") and string[-1] in ("]", ")"):
         string = string[1:-1]
-    if type == "float":
+    if type in ["float", float]:
         lst = [float(num) for num in string.split(delim)]
-    elif type == "int":
+    elif type in ["int", int]:
         lst = [int(num) for num in string.split(delim)]
     else:
-        raise ValueError("type {} not recognized".format(type))
-
+        raise ValueError(f"type {type} not recognized")
     return lst
 
 
@@ -912,7 +934,7 @@ def dict2csv(dct, file_path):
             f.write("{}, {} \n".format(key, dct[key]))
 
 
-def process_lr(lr_str):
+def process_lr(lr_str: str) -> float | np.ndarray:
     """
     Process the lr provided by argparse.
     Args:
@@ -924,10 +946,8 @@ def process_lr(lr_str):
     print(lr_str)
     lr_str = str(lr_str)
     if "," in lr_str:
-        print("going into str to list")
-        return np.array(str_to_list(lr_str, ","))
+        return np.array(str_to_list(lr_str, ",", type=float))
     else:
-        print("before error")
         return float(lr_str)
 
 
@@ -956,10 +976,12 @@ def process_hdim(hdim_str):
 
 
 def process_hdim_fb(hdim_str):
-    if "," in hdim_str:
-        return str_to_list(hdim_str, ",", type="int")
-    else:
-        return [int(hdim_str)]
+    # NOTE: Redundant
+    return process_hdim(hdim_str)
+    # if "," in hdim_str:
+    #     return str_to_list(hdim_str, ",", type="int")
+    # else:
+    #     return [int(hdim_str)]
 
 
 def check_gpu():

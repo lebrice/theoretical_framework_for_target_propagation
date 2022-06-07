@@ -183,7 +183,7 @@ def build_network(args: Args):
     Returns: a network
 
     """
-    network_type: NetworkName = network_type
+    network_type: NetworkName = args.network_type
 
     n_hidden: list[int] | None = None
     if args.hidden_layers is None:
