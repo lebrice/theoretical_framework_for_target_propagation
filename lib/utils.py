@@ -17,22 +17,20 @@ A collection of helper functions
 --------------------------------
 """
 from __future__ import annotations
-from typing import TypeVar, overload
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-from tensorboardX import SummaryWriter
-from typing import Literal
+
 import os
-import pandas
 import warnings
+from typing import Literal, TypeVar, overload
 
 # from lib import networks, direct_feedback_networks
 import matplotlib
+import numpy as np
+import pandas
+import torch
+from torch.utils.data import Dataset
 
 # Force matplotlib to not use any Xwindows backend.
 matplotlib.use("Agg")
-from matplotlib import rc
 import matplotlib.pyplot as plt
 
 
@@ -968,7 +966,7 @@ def process_nb_feedback_iterations(nb_feedback_iterations_str):
         return list(nb_feedback_iterations_str)
 
 
-def process_hdim(hdim_str):
+def process_hdim(hdim_str: str):
     if "," in hdim_str:
         return str_to_list(hdim_str, ",", type="int")
     else:
