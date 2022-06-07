@@ -214,7 +214,7 @@ class DDTPConvNetwork(nn.Module):
             y = layer.forward(y)
         return y
 
-    def dummy_forward(self, h, i):
+    def dummy_forward(self, h: Tensor, i: int) -> Tensor:
         """Propagate the activation of layer i forward through the network
         without saving the activations"""
         y = h

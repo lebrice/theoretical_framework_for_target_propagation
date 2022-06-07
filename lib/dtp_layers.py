@@ -16,7 +16,7 @@
 In here, we define classes for fully connected layers in a multilayer perceptron
 network that will be trained by difference target propagation.
 """
-
+from torch import Tensor
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -297,7 +297,7 @@ class DTPLayer(nn.Module):
         True, such that the gradient will be saved in the activation tensor."""
         self._activations.requires_grad = True
 
-    def forward(self, x):
+    def forward(self, x: Tensor, save_activations: bool = True) -> Tensor:
         """Compute the output activation of the layer.
 
         This method applies first a linear mapping with the
@@ -315,19 +315,16 @@ class DTPLayer(nn.Module):
         h = x.mm(self.weights.t())
         if self.bias is not None:
             h += self.bias.unsqueeze(0).expand_as(h)
-        self.linearactivations = h
+        activations = self.forward_activationfunction(h)
+        if save_activations:
+            self.linearactivations = h
+            self.activations = activations
+        return activations
 
-        self.activations = self.forward_activationfunction(h)
-        return self.activations
-
-    def dummy_forward(self, x):
-        """ Same as the forward method, besides that the activations and
+    def dummy_forward(self, x: Tensor) -> Tensor:
+        """Same as the forward method, besides that the activations and
         linear activations are not saved in self."""
-        h = x.mm(self.weights.t())
-        if self.bias is not None:
-            h += self.bias.unsqueeze(0).expand_as(h)
-        h = self.forward_activationfunction(h)
-        return h
+        return self(x, save_activations=False)
 
     def dummy_forward_linear(self, x):
         """ Propagate the input of the layer forward to the linear activation

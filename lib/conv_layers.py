@@ -203,20 +203,17 @@ class DDTPConvLayer(nn.Module):
                 "supported".format(self.feedback_activation)
             )
 
-    def forward(self, x):
+    def forward(self, x: Tensor, save_activations: bool = True) -> Tensor:
         # x = x.detach()
         x = self._conv_layer(x)
         x = self.forward_activationfunction(x)
         x = self._pool_layer(x)
-        self.activations = x
-        return self.activations
+        if save_activations:
+            self.activations = x
+        return x
 
     def dummy_forward(self, x):
-        # x = x.detach()
-        x = self._conv_layer(x)
-        x = self.forward_activationfunction(x)
-        x = self._pool_layer(x)
-        return x
+        return self(x, save_activations=False)
 
     def propagate_backward(self, output_target):
         h = output_target.mm(self.feedbackweights.t())
