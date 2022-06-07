@@ -19,15 +19,16 @@ connections should be implemented.
 
 """
 from __future__ import annotations
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
+
 from .dtp_layers import DTPLayer
 from .dtpdrl_layers import DTPDRLLayer
 from .networks import BPNetwork
-import torch
-import torch.nn as nn
-import numpy as np
-import torch.nn.functional as F
-from . import utils
 
 
 class DDTPRHLLayer(DTPDRLLayer):
@@ -402,11 +403,12 @@ class DDTPMLPLayer(DTPDRLLayer):
 
         """
         self.reconstruction_loss = reconstruction_loss.item()
+        assert self._fb_mlp is not None
         grads = torch.autograd.grad(
-            reconstruction_loss, self._fb_mlp.parameters(), retain_graph=False
+            reconstruction_loss, list(self._fb_mlp.parameters()), retain_graph=False
         )
-        for i, param in enumerate(self._fb_mlp.parameters()):
-            param.grad = grads[i].detach()
+        for grad, param in zip(grads, self._fb_mlp.parameters()):
+            param.grad = grad.detach()
 
     def get_feedback_parameters(self):
         return self._fb_mlp.parameters()

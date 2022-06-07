@@ -13,18 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
+
 from typing import ClassVar
-import torch
-from torch import nn
-import numpy as np
-from .networks import DTPNetwork
-from .conv_layers import DDTPConvLayer, DDTPConvControlLayer
-from .direct_feedback_layers import DDTPMLPLayer, DDTPControlLayer, DDTPRHLLayer
-from .dtp_layers import DTPLayer
-import torch.nn.functional as F
-from . import utils
+
 import pandas as pd
-from torch import Tensor
+import torch
+import torch.nn.functional as F
+from torch import Tensor, nn
+
+from . import utils
+from .conv_layers import DDTPConvControlLayer, DDTPConvLayer
+from .direct_feedback_layers import DDTPControlLayer, DDTPMLPLayer
+from .dtp_layers import DTPLayer
 
 
 class DDTPConvNetwork(nn.Module):
@@ -790,21 +790,21 @@ class DDTPConvNetworkCIFAR(DDTPConvNetwork):
 
         self._plots = plots
         if plots is not None:
-            self.bp_angles = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.bp_distances = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gn_angles = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gn_distances = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gnt_angles = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gnt_distances = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.bp_activation_angles = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.bp_activation_distances = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gn_activation_angles = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.gn_activation_distances = pd.DataFrame(columns=[i for i in range(0, self._depth)])
+            self.bp_angles = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.bp_distances = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gn_angles = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gn_distances = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gnt_angles = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gnt_distances = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.bp_activation_angles = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.bp_activation_distances = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gn_activation_angles = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.gn_activation_distances = pd.DataFrame(columns=list(range(0, self._depth)))
 
-            self.reconstruction_loss_init = pd.DataFrame(columns=[i for i in range(0, self._depth)])
-            self.reconstruction_loss = pd.DataFrame(columns=[i for i in range(0, self._depth)])
+            self.reconstruction_loss_init = pd.DataFrame(columns=list(range(0, self._depth)))
+            self.reconstruction_loss = pd.DataFrame(columns=list(range(0, self._depth)))
 
-            self.nullspace_relative_norm = pd.DataFrame(columns=[i for i in range(0, self._depth)])
+            self.nullspace_relative_norm = pd.DataFrame(columns=list(range(0, self._depth)))
 
 
 class DTPConvNetworkCIFAR(DDTPConvNetwork):
