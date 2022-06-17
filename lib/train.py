@@ -15,9 +15,11 @@
 """
 Collection of train and test functions.
 """
+from __future__ import annotations
 
 import os
 import pickle
+import typing
 from argparse import Namespace
 
 import numpy as np
@@ -25,11 +27,26 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from orion.client import report_objective
+from torch.utils.data import DataLoader
+
+if typing.TYPE_CHECKING:
+    from meulemans_dtp.main import Args
+    from meulemans_dtp.lib.networks import DTPNetwork
+    from tensorboardX import SummaryWriter
 
 from . import utils
 
 
-def train(args, device, train_loader, net, writer, test_loader, summary, val_loader):
+def train(
+    args: Args,
+    device,
+    train_loader: DataLoader,
+    net: DTPNetwork,
+    writer: SummaryWriter,
+    test_loader: DataLoader,
+    summary: dict,
+    val_loader: DataLoader,
+):
     """
     Train the given network on the given training dataset with DTP.
     Args:

@@ -25,29 +25,27 @@ For more usage information, please check out
   $ python3 main --help
 
 """
+# NOTE: CANNOT use this future annotations, seems to break some Hydra/OmegaConf inspection code.
 import argparse
 import json
-from typing import Dict, List, Optional
-import numpy as np
+import os
+import os.path
+import pickle
 import random
+from typing import List, Literal, Optional, TypeVar
+
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import os
-
-from typing import Literal
 from tensorboardX import SummaryWriter
-import os.path
-import pickle
 
 try:
+    from .lib import builders, utils
     from .lib.train import train, train_bp
-    from .lib import utils
-    from .lib import builders
 except ImportError:
+    from lib import builders, utils
     from lib.train import train, train_bp
-    from lib import utils
-    from lib import builders
 
 # TODO: Local fix for mac
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
@@ -91,11 +89,11 @@ def run(overwrite_defaults: Optional[dict] = None):
     return launch(args)
 
 
-import simple_parsing
-from simple_parsing import choice, ArgumentParser, field, list_field
-from simple_parsing.helpers.serialization.serializable import Serializable
-from simple_parsing.helpers.flatten import FlattenedAccess
 from dataclasses import dataclass
+
+import simple_parsing
+from simple_parsing import choice, field, list_field
+from simple_parsing.helpers.serialization.serializable import Serializable
 
 
 @dataclass
@@ -126,7 +124,7 @@ class TrainOptions(Serializable):
 
     lr: list[float] = list_field(0.01)
     """ Learning rate of optimizer for the forward parameters. You can either provide a single float
-    that will be used as lr for all the layers, or a list of learning rates (e.g. [0.1,0.2,0.5]) 
+    that will be used as lr for all the layers, or a list of learning rates (e.g. [0.1,0.2,0.5])
     specifying a lr for each layer. The lenght of the list should be equal to num_hidden + 1.
     The list may not contain spaces.
     """
@@ -148,7 +146,7 @@ class TrainOptions(Serializable):
     momentum: float = 0.9
     """ Momentum of the SGD or RMSprop optimizer. """
     sigma: float = 0.08
-    """ Svd of gaussian noise used to corrupt the hidden layer activations for computing the 
+    """ Svd of gaussian noise used to corrupt the hidden layer activations for computing the
     reconstruction loss.
     """
     forward_wd: float = 0.0
@@ -165,7 +163,7 @@ class TrainOptions(Serializable):
     should not be used.
     """
     train_randomized: bool = False
-    """ Flag indicating that the randomized target propagation training scheme should be used, 
+    """ Flag indicating that the randomized target propagation training scheme should be used,
     where for each minibatch, one layer is selected randomly for updating.
     """
 
@@ -175,7 +173,7 @@ class TrainOptions(Serializable):
     behavior.
     """
     train_only_feedback_parameters: bool = False
-    """ Flag indicating that only the feedback parameters should be trained, not the forward 
+    """ Flag indicating that only the feedback parameters should be trained, not the forward
     parameters.
     """
     epochs_fb: int = 1
@@ -183,8 +181,8 @@ class TrainOptions(Serializable):
 
     soft_target: float = 0.9
     """Used in combination with sigmoid output activation and L2 output loss. Instead of using
-    one-hot vectors as output labels, we multiply the one hot vector with soft_target such that the 
-    network does not push its output to extreme values. 
+    one-hot vectors as output labels, we multiply the one hot vector with soft_target such that the
+    network does not push its output to extreme values.
     """
 
     freeze_forward_weights: bool = False
@@ -207,7 +205,7 @@ class TrainOptions(Serializable):
 
     extra_fb_epochs: int = 0
     """ After each epoch of training, the fb parameters will be trained for an extra
-    `extra_fb_epochs` 
+    `extra_fb_epochs`
     """
 
     extra_fb_minibatches: int = 0
@@ -224,7 +222,7 @@ class TrainOptions(Serializable):
     """ Thikonov damping used to train the GN network. """
 
     not_randomized_fb: bool = False
-    """ Depreciated argument. 
+    """ Depreciated argument.
     This flag applies for networks that use the difference reconstruction loss. The flag indicates
     that for each minibatch, all feedback parameters should be trained instead of only one set of
     randomly drawn feedback parameters.
@@ -232,7 +230,7 @@ class TrainOptions(Serializable):
 
     train_randomized_fb: bool = False
     """This flag applies for networks that use the difference reconstruction loss. The flag
-    indicates that for each minibatch, one layer is selected randomly for training the feedback 
+    indicates that for each minibatch, one layer is selected randomly for training the feedback
     parameters.
     """
 
@@ -314,9 +312,11 @@ class NetworkOptions(Serializable):
     num_hidden: int = 2
     """ Number of hidden layer in the network. """
 
-    size_hidden: List[int] = list_field(500)
-    """ Number of units in each hidden layer of the (student) network. If you provide a list, you 
+    size_hidden: int = 500
+    """ Number of units in each hidden layer of the (student) network. If you provide a list, you
     can have layers of different sizes.
+
+    NOTE (@lebrice): This is always just an int in practice, as far as I can tell.
     """
 
     size_input: int = 3072
@@ -367,8 +367,8 @@ class NetworkOptions(Serializable):
         "DDTPConvControlCIFAR",
         default="DDTPConvCIFAR",
     )
-    """ Variant of TP that will be used to train the network. See the layer classes for explanations 
-    of the names.
+    """ Variant of TP that will be used to train the network. See the layer classes for
+    explanations of the names.
     """
 
     initialization: str = choice(
@@ -378,8 +378,10 @@ class NetworkOptions(Serializable):
     network.
     """
 
-    size_mlp_fb: Optional[list[int]] = list_field(100)
+    size_mlp_fb: Optional[int] = 100
     """ The size of the hidden layers of the MLP that is used in the DMLPDTP layers.
+
+    NOTE (@lebrice): This is always just an int in practice, as far as I can tell.
     """
     # NOTE: Removed this:
     # For one hidden layer, provide the integer indicating the size of the
@@ -497,12 +499,12 @@ class LoggingOptions(Serializable):
     load_weights: bool = False
 
     gn_damping_hpsearch: bool = False
-    """Flag indicating whether a small hpsearch should be performed to optimize the gn_damping 
+    """Flag indicating whether a small hpsearch should be performed to optimize the gn_damping
     constant with which the gnt angles are computed.
     """
 
     save_nullspace_norm_ratio: bool = False
-    """Flag indicating whether the norm ratio between the nullspace components of the parameter 
+    """Flag indicating whether the norm ratio between the nullspace components of the parameter
     updates and the updates themselves should be computed and saved.
     """
 
@@ -538,129 +540,18 @@ class Args(DatasetOptions, TrainOptions, AdamOptions, NetworkOptions, MiscOption
     # misc: MiscOptions = field(default_factory=MiscOptions)
     # logging: LoggingOptions = field(default_factory=LoggingOptions)
 
+    # These fields are set in-place on the namespace when post-processing the arguments.
+    save_angle: bool = field(init=False)
+    classification: bool = field(init=False)
+    regression: bool = field(init=False)
+    diff_rec_loss: bool = field(init=False)
+    direct_fb: bool = field(init=False)
+
     def __post_init__(self):
-        self.save_angle = (
-            self.save_GN_activations_angle
-            or self.save_BP_activations_angle
-            or self.save_BP_angle
-            or self.save_GN_angle
-            or self.save_GNT_angle
-        )
-        print(self)
-
-        ### Create summary log writer
-        curdir = os.path.curdir
-        if self.out_dir is None:
-            out_dir = os.path.join(
-                curdir,
-                "logs",
-            )
-            self.out_dir = out_dir
-        else:
-            out_dir = os.path.join(curdir, self.out_dir)
-            if not os.path.exists(out_dir):
-                os.makedirs(out_dir)
-        print("Logging at {}".format(out_dir))
-
-        with open(os.path.join(out_dir, "self.txt"), "w") as f:
-            json.dump(self.__dict__, f, indent=2)
-
-        self.classification = self.dataset in ["mnist", "fashion_mnist", "cifar10"]
-        self.regression = self.dataset in ["student_teacher", "boston"]
-        if not self.classification and not self.regression:
-            raise ValueError("Dataset {} is not supported.".format(self.dataset))
-
-        # initializing command line arguments if None
-        self.output_activation = self.output_activation or (
-            "softmax" if self.classification else "linear"
-        )
-
-        self.fb_activation = self.fb_activation or self.hidden_activation
-        self.hidden_fb_activation = self.hidden_fb_activation or self.hidden_activation
-        self.optimizer_fb = self.optimizer_fb or self.optimizer
-
-        # Manipulating command line arguments if asked
-        # TODO: They were manipulating these if they were strings, which isn't necessary anymore,
-        # however, it might be important to be able to load from their configs in the long run.
-        if isinstance(self.lr, str):
-            self.lr = utils.process_lr(self.lr)
-        if isinstance(self.lr_fb, str):
-            self.lr_fb = utils.process_lr(self.lr_fb)
-        if isinstance(self.nb_feedback_iterations, str):
-            self.nb_feedback_iterations = utils.process_nb_feedback_iterations(
-                self.nb_feedback_iterations
-            )
-        if isinstance(self.epsilon_fb, str):
-            self.epsilon_fb = utils.process_lr(self.epsilon_fb)
-        if isinstance(self.epsilon, str):
-            self.epsilon = utils.process_lr(self.epsilon)
-        if isinstance(self.size_hidden, str):
-            self.size_hidden = utils.process_hdim(self.size_hidden)
-
-        self.random_seed = int(self.random_seed)
-        if self.size_mlp_fb == "None":
-            self.size_mlp_fb = None
-        elif isinstance(self.size_mlp_fb, str):
-            self.size_mlp_fb = utils.process_hdim_fb(self.size_mlp_fb)
-
-        if self.normalize_lr:
-            self.lr = np.array(self.lr) / self.target_stepsize
-
-        if self.network_type in ["GN", "GN2"]:
-            # if the GN variant of the network is used, the fb weights do not need
-            # to be trained
-            self.freeze_fb_weights = True
-
-        if self.network_type == "DFA":
-            # manipulate cmd arguments such that we use a DMLPDTP2 network with
-            # linear MLP's with fixed weights
-            self.freeze_fb_weights = True
-            self.network_type = "DMLPDTP2"
-            self.size_mlp_fb = None
-            self.fb_activation = "linear"
-            self.train_randomized = False
-
-        if self.network_type == "DFAConv":
-            self.freeze_fb_weights = True
-            self.network_type = "DDTPConv"
-            self.fb_activation = "linear"
-            self.train_randomized = False
-
-        if self.network_type == "DFAConvCIFAR":
-            self.freeze_fb_weights = True
-            self.network_type = "DDTPConvCIFAR"
-            self.fb_activation = "linear"
-            self.train_randomized = False
-
-        self.diff_rec_loss = self.network_type in ["DTPDR"]
-
-        self.direct_fb = self.network_type in [
-            "DKDTP",
-            "DKDTP2",
-            "DMLPDTP",
-            "DMLPDTP2",
-            "DDTPControl",
-            "DDTPConv",
-            "DDTPConvCIFAR",
-            "DDTPConvControlCIFAR",
-        ]
-
-        if isinstance(self.gn_damping, str) and "," in self.gn_damping:
-            self.gn_damping = utils.str_to_list(self.gn_damping, type="float")
-        else:
-            self.gn_damping = float(self.gn_damping)
-
-        # Checking valid combinations of command line arguments
-        if self.shallow_training:
-            if not self.network_type == "BP":
-                raise ValueError(
-                    "The shallow_training method is only implemented"
-                    "in combination with BP. Make sure to set "
-                    "the network_type argument on BP."
-                )
+        postprocess_args(self)
 
 
-def add_command_line_args_v2(parser: simple_parsing.ArgumentParser = None):
+def add_command_line_args_v2(parser: Optional[simple_parsing.ArgumentParser] = None):
     ### Parse CLI arguments.
     parser = parser or simple_parsing.ArgumentParser(
         description='Run experiments from paper "A theoretical framework for target propagation".'
@@ -670,7 +561,7 @@ def add_command_line_args_v2(parser: simple_parsing.ArgumentParser = None):
     return parser
 
 
-def add_command_line_args(parser: argparse.ArgumentParser = None):
+def add_command_line_args(parser: Optional[argparse.ArgumentParser] = None):
     ### Parse CLI arguments.
     parser = parser or argparse.ArgumentParser(
         description="Run experiments from paper "
@@ -1321,7 +1212,10 @@ def add_command_line_args(parser: argparse.ArgumentParser = None):
     return parser
 
 
-def postprocess_args(args: argparse.Namespace) -> argparse.Namespace:
+_ArgsType = TypeVar("_ArgsType", argparse.Namespace, Args)
+
+
+def postprocess_args(args: _ArgsType) -> _ArgsType:
     args.save_angle = (
         args.save_GN_activations_angle
         or args.save_BP_activations_angle
@@ -1391,6 +1285,7 @@ def postprocess_args(args: argparse.Namespace) -> argparse.Namespace:
 
     if args.normalize_lr:
         args.lr = args.lr / args.target_stepsize
+        print(f"Normalizing the learning rate: {args.lr}")
 
     if args.network_type in ["GN", "GN2"]:
         # if the GN variant of the network is used, the fb weights do not need
@@ -1581,7 +1476,7 @@ def launch(args: argparse.Namespace):
             val_loader = None
         else:
             g_cuda = torch.Generator(device="cuda")
-            from torch.utils.data import random_split, DataLoader
+            from torch.utils.data import DataLoader, random_split
 
             trainset, valset = random_split(trainset_total, [45000, 5000], generator=g_cuda)
             train_loader = torch.utils.data.DataLoader(
