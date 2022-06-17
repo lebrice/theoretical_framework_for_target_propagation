@@ -21,6 +21,7 @@ import os
 import pickle
 import typing
 from argparse import Namespace
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,8 @@ import torch
 import torch.nn as nn
 from orion.client import report_objective
 from torch.utils.data import DataLoader
+
+from meulemans_dtp.lib.conv_network import DDTPConvNetwork
 
 if typing.TYPE_CHECKING:
     from meulemans_dtp.main import Args
@@ -346,7 +349,14 @@ def train(
     return train_var.summary
 
 
-def train_parallel(args, train_var, device, train_loader, net, writer):
+def train_parallel(
+    args: Args,
+    train_var: Namespace,
+    device,
+    train_loader: DataLoader,
+    net: Union[DTPNetwork, DDTPConvNetwork],
+    writer: SummaryWriter,
+):
     """
     Train the given network on the given training dataset with DTP. The forward
     and feedback parameters are trained simultaneously for each batch.
